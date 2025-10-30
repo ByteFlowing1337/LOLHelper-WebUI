@@ -8,7 +8,7 @@ import threading
 import webbrowser
 
 from config import SECRET_KEY, HOST, PORT
-from routes import api_bp
+from routes import page_bp, data_bp
 from websocket import register_socket_events
 from utils import get_local_ip
 
@@ -25,7 +25,8 @@ def create_app():
     app.config['SECRET_KEY'] = SECRET_KEY
     
     # 注册蓝图
-    app.register_blueprint(api_bp)
+    app.register_blueprint(page_bp)  # 页面渲染路由
+    app.register_blueprint(data_bp)  # 数据 API 路由
     
  
     
