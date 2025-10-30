@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>对局详情 - {{ summoner_name }}</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <style>
+      :root {
+        --win-color: #28a745;
+        --loss-color: #dc3545;
+        --blue-team: #4e8cff;
+        --red-team: #ff4e50;
+      }
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px 0;
+      }
+      .main-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+      }
+
+      /* 对局头部 */
+      .match-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+      .match-header h2 {
+        margin: 0;
+        font-weight: 700;
+      }
+      .match-header .meta {
+        margin-top: 15px;
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        flex-wrap: wrap;
+      }
+      .match-header .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .match-header .meta-item i {
+        font-size: 1.2rem;
+      }
+
+      .game-mode-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 20px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(4px);
+      }
+      .game-mode-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        background: rgba(0, 0, 0, 0.15);
+        color: white;
+      }
+      .game-mode-label {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+
+      /* CHERRY 模式特殊样式 */
+      .cherry-mode .match-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+      .subteam-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 5px solid;
+        transition: all 0.3s ease;
+      }
+      .subteam-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+      .subteam-card.winning {
+        border-left-color: var(--win-color);
+        background: linear-gradient(
+          90deg,
+          rgba(40, 167, 69, 0.05) 0%,
+          white 100%
+        );
+      }
+      .subteam-card.losing {
+        border-left-color: var(--loss-color);
+        background: linear-gradient(
+          90deg,
+          rgba(220, 53, 69, 0.05) 0%,
+          white 100%
+        );
+      }
+
+      /* 队伍区域 */
+      .team-section {
+        padding: 30px;
+      }
+      .team-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid;
+      }
+      .team-header.blue {
+        border-bottom-color: var(--blue-team);
+      }
+      .team-header.red {
+        border-bottom-color: var(--red-team);
+      }
+      .team-header h4 {
+        margin: 0;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .team-header.blue h4 {
+        color: var(--blue-team);
+      }
+      .team-header.red h4 {
+        color: var(--red-team);
+      }
+
+      /* 玩家卡片 */
+      .player-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 15px;
+        align-items: center;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+      }
+      .player-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        border-color: #667eea;
+      }
+      .player-card.mvp {
+        background: linear-gradient(
+          90deg,
+          rgba(255, 193, 7, 0.1) 0%,
+          #f8f9fa 100%
+        );
+        border-color: #ffc107;
+      }
+
+      .player-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .champion-avatar {
+        position: relative;
+        width: 60px;
+        height: 60px;
+      }
+      .champion-avatar img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      }
+      .champion-level {
+        position: absolute;
+        bottom: -5px;
+        right: -5px;
+        background: #667eea;
+        color: white;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+        border: 2px solid white;
+      }
+      .profile-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        border: 2px solid #667eea;
+      }
+      .player-name-info {
+        flex: 1;
+      }
+      .player-name-info .name {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #333;
+        text-decoration: none;
+      }
+      .player-name-info .name:hover {
+        color: #667eea;
+      }
+      .player-name-info .role {
+        color: #6c757d;
+        font-size: 0.85rem;
+      }
+
+      /* KDA 显示 */
+      .kda-display {
+        text-align: center;
+        padding: 0 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .kda-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        background: rgba(102, 126, 234, 0.18);
+        color: #667eea;
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.25);
+        transition: transform 0.3s ease;
+      }
+      .player-card:hover .kda-icon {
+        transform: translateY(-2px) scale(1.08);
+      }
+      .kda-numbers {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 3px;
+      }
+      .kda-icon.perfect {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 213, 79, 0.2),
+          rgba(255, 152, 0, 0.4)
+        );
+        color: #ff9800;
+        box-shadow: 0 10px 24px rgba(255, 193, 7, 0.35);
+      }
+      .kda-numbers.perfect {
+        color: #ffc107;
+      }
+      .kda-icon.excellent {
+        background: linear-gradient(
+          135deg,
+          rgba(40, 167, 69, 0.2),
+          rgba(76, 201, 155, 0.4)
+        );
+        color: var(--win-color);
+        box-shadow: 0 10px 24px rgba(40, 167, 69, 0.3);
+      }
+      .kda-numbers.excellent {
+        color: var(--win-color);
+      }
+      .kda-icon.good {
+        background: linear-gradient(
+          135deg,
+          rgba(23, 162, 184, 0.2),
+          rgba(72, 201, 233, 0.4)
+        );
+        color: #17a2b8;
+        box-shadow: 0 10px 24px rgba(23, 162, 184, 0.3);
+      }
+      .kda-numbers.good {
+        color: #17a2b8;
+      }
+      .kda-icon.bad {
+        background: linear-gradient(
+          135deg,
+          rgba(220, 53, 69, 0.2),
+          rgba(255, 111, 145, 0.4)
+        );
+        color: var(--loss-color);
+        box-shadow: 0 10px 24px rgba(220, 53, 69, 0.3);
+      }
+      .kda-numbers.bad {
+        color: var(--loss-color);
+      }
+      .kda-ratio {
+        font-size: 0.85rem;
+        color: #6c757d;
+      }
+
+      /* 物品栏 */
+      .items-display {
+        display: grid;
+        grid-template-columns: repeat(4, 36px);
+        gap: 4px;
+      }
+      .item-slot {
+        width: 36px;
+        height: 36px;
+        background: #dee2e6;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 2px solid #adb5bd;
+      }
+      .item-slot img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* 统计数据 */
+      .stats-display {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 150px;
+      }
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+      }
+      .stat-label {
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .stat-value {
+        font-weight: 600;
+        color: #333;
+      }
+
+      /* 海克斯天赋 */
+      .augments-container {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .augment-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 2px solid #764ba2;
+        box-shadow: 0 2px 8px rgba(118, 75, 162, 0.3);
+        cursor: help;
+        transition: transform 0.2s ease;
+      }
+      .augment-icon:hover {
+        transform: scale(1.2);
+      }
+
+      /* 加载动画 */
+      .loading-container {
+        text-align: center;
+        padding: 60px 20px;
+      }
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 20px;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* 响应式 */
+      @media (max-width: 768px) {
+        .player-card {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+        .items-display {
+          grid-template-columns: repeat(7, 32px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="main-card">
+        <!-- 加载状态 -->
+        <div id="loading" class="loading-container">
+          <div class="loading-spinner"></div>
+          <h4 style="color: white">加载对局详情中...</h4>
+          <p style="color: rgba(255, 255, 255, 0.8)">正在从 LCU API 获取数据</p>
+        </div>
+
+        <!-- 对局内容 -->
+        <div id="match-content" style="display: none">
+          <!-- 对局头部 -->
+          <div class="match-header" id="match-header">
+            <h2 id="game-mode">未知模式</h2>
+            <div class="meta">
+              <div class="meta-item">
+                <i class="bi bi-clock"></i>
+                <span id="game-duration">--:--</span>
+              </div>
+              <div class="meta-item">
+                <i class="bi bi-calendar3"></i>
+                <span id="game-time">----/--/--</span>
+              </div>
+              <div class="meta-item">
+                <i class="bi bi-hash"></i>
+                <span id="game-id">对局ID: ---</span>
+              </div>
+            </div>
+            <div class="mt-3">
+              <a
+                href="/summoner/{{ summoner_name }}"
+                class="btn btn-light btn-sm"
+              >
+                <i class="bi bi-arrow-left"></i> 返回召唤师战绩
+              </a>
+            </div>
+          </div>
+
+          <!-- 对局数据容器 -->
+          <div id="game-content"></div>
+        </div>
+
+        <!-- 错误提示 -->
+        <div
+          id="error-container"
+          style="display: none; padding: 40px; text-align: center"
+        >
+          <i
+            class="bi bi-exclamation-triangle"
+            style="font-size: 3rem; color: #dc3545"
+          ></i>
+          <h4 class="mt-3">加载失败</h4>
+          <p id="error-message" class="text-muted"></p>
+          <a href="/summoner/{{ summoner_name }}" class="btn btn-primary mt-3"
+            >返回战绩页面</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script id="server-data" type="application/json">
+      {{ {
+          'summoner_name': summoner_name,
+          'game_index': game_index,
+          'match_id': match_id,
+          'champion_map': (champion_map if champion_map is defined else {})
+      }|tojson }}
+    </script>
+    <script>
+      const SERVER_DATA = JSON.parse(
+        document.getElementById("server-data").textContent || "{}"
+      );
+      const summonerName = SERVER_DATA.summoner_name || "";
+      const gameIndex = SERVER_DATA.game_index || 0;
+      const matchId = SERVER_DATA.match_id || null;
+      const CHAMPION_MAP = SERVER_DATA.champion_map || {};
+      const MODE_ICON_MAP = {
+        CLASSIC: {
+          icon: "bi bi-shield-shaded",
+          badge:
+            "linear-gradient(135deg, rgba(102, 126, 234, 0.35), rgba(118, 75, 162, 0.55))",
+          iconBg: "linear-gradient(135deg, #667eea, #764ba2)",
+          iconColor: "#ffffff",
+        },
+        ARAM: {
+          icon: "bi bi-snow",
+          badge:
+            "linear-gradient(135deg, rgba(77, 189, 255, 0.35), rgba(126, 189, 255, 0.55))",
+          iconBg: "linear-gradient(135deg, #4dbdff, #7ebdff)",
+          iconColor: "#ffffff",
+        },
+        KIWI: {
+          icon: "bi bi-hexagon-fill",
+          badge:
+            "linear-gradient(135deg, rgba(95, 211, 182, 0.35), rgba(60, 186, 146, 0.55))",
+          iconBg: "linear-gradient(135deg, #24c6dc, #2af598)",
+          iconColor: "#ffffff",
+        },
+        CHERRY: {
+          icon: "bi bi-gem",
+          badge:
+            "linear-gradient(135deg, rgba(240, 147, 251, 0.4), rgba(245, 87, 108, 0.55))",
+          iconBg: "linear-gradient(135deg, #f093fb, #f5576c)",
+          iconColor: "#ffffff",
+        },
+        URF: {
+          icon: "bi bi-lightning-charge-fill",
+          badge:
+            "linear-gradient(135deg, rgba(255, 196, 0, 0.35), rgba(255, 115, 0, 0.55))",
+          iconBg: "linear-gradient(135deg, #ffb347, #ffcc33)",
+          iconColor: "#4a2c00",
+        },
+        ONEFORALL: {
+          icon: "bi bi-people-fill",
+          badge:
+            "linear-gradient(135deg, rgba(158, 197, 254, 0.35), rgba(123, 164, 255, 0.55))",
+          iconBg: "linear-gradient(135deg, #4e54c8, #8f94fb)",
+          iconColor: "#ffffff",
+        },
+        NEXUSBLITZ: {
+          icon: "bi bi-fire",
+          badge:
+            "linear-gradient(135deg, rgba(255, 138, 101, 0.35), rgba(255, 94, 98, 0.55))",
+          iconBg: "linear-gradient(135deg, #ff512f, #dd2476)",
+          iconColor: "#ffffff",
+        },
+        _default: {
+          icon: "bi bi-question-diamond-fill",
+          badge: "rgba(255, 255, 255, 0.18)",
+          iconBg:
+            "linear-gradient(135deg, rgba(102, 126, 234, 0.4), rgba(118, 75, 162, 0.6))",
+          iconColor: "#ffffff",
+        },
+      };
+
+      // 格式化数字
+      function fmt(n) {
+        if (n === null || n === undefined) return "0";
+        if (Math.abs(n) >= 1000)
+          return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+        return String(n);
+      }
+
+      function pad2(n) {
+        return String(n).padStart(2, "0");
+      }
+
+      function getTimePeriod(hours) {
+        if (hours < 5) return "凌晨";
+        if (hours < 12) return "上午";
+        if (hours < 14) return "中午";
+        if (hours < 18) return "下午";
+        return "晚上";
+      }
+
+      function formatGameTime(timestamp) {
+        if (!timestamp) return "----/--/--";
+
+        // Accept timestamps in ms, seconds, or numeric strings.
+        let ts = timestamp;
+        if (typeof ts === "string" && /^\d+$/.test(ts)) {
+          ts = Number(ts);
+        }
+        if (typeof ts === "number") {
+          // If it looks like seconds (10 digits-ish), convert to ms
+          if (ts < 1e12) ts = ts * 1000;
+        }
+
+        const date = new Date(ts);
+        if (Number.isNaN(date.getTime())) return "----/--/--";
+
+        const year = date.getFullYear();
+        const month = pad2(date.getMonth() + 1);
+        const day = pad2(date.getDate());
+        const hours = date.getHours(); // 0-23
+        const minutes = pad2(date.getMinutes());
+        const seconds = pad2(date.getSeconds());
+        const period = getTimePeriod(hours);
+        const hours12 = hours % 12 === 0 ? 12 : hours % 12;
+        const time12 = `${pad2(hours12)}:${minutes}:${seconds}`;
+
+        const offsetMinutes = -date.getTimezoneOffset();
+        const offsetSign = offsetMinutes >= 0 ? "+" : "-";
+        const offsetAbs = Math.abs(offsetMinutes);
+        const offsetHours = pad2(Math.floor(offsetAbs / 60));
+        const offsetRemainder = pad2(offsetAbs % 60);
+        const timeZoneLabel = `GMT${offsetSign}${offsetHours}:${offsetRemainder}`;
+
+        return `${year}/${month}/${day} ${period} ${time12} ${timeZoneLabel}`;
+      }
+
+      // 加载对局数据
+      async function loadMatch() {
+        const loading = document.getElementById("loading");
+        const matchContent = document.getElementById("match-content");
+        const errorContainer = document.getElementById("error-container");
+
+        try {
+          let url;
+          if (matchId) {
+            url = `/get_match?match_id=${encodeURIComponent(matchId)}`;
+          } else {
+            url = `/get_match?name=${encodeURIComponent(
+              summonerName
+            )}&index=${gameIndex}`;
+          }
+
+          const resp = await fetch(url);
+          const data = await resp.json();
+
+          loading.style.display = "none";
+
+          if (!data.success) {
+            showError(data.message || "获取对局失败");
+            return;
+          }
+
+          renderMatch(data.game);
+          matchContent.style.display = "block";
+        } catch (e) {
+          loading.style.display = "none";
+          showError("网络错误：" + e.message);
+          console.error(e);
+        }
+      }
+
+      function showError(message) {
+        const errorContainer = document.getElementById("error-container");
+        const errorMessage = document.getElementById("error-message");
+        errorMessage.textContent = message;
+        errorContainer.style.display = "block";
+      }
+
+      function renderMatch(game) {
+        const gameMode = game.gameMode || "未知模式";
+        const isCherryMode = gameMode === "CHERRY";
+        const isKiwiMode = gameMode === "KIWI";
+
+        // 设置头部信息
+        document.getElementById("game-mode").innerHTML =
+          renderGameModeBadge(gameMode);
+
+        if (isCherryMode) {
+          document.querySelector(".main-card").classList.add("cherry-mode");
+        }
+
+        // 时长
+        const durationSec = game.gameDuration || 0;
+        const minutes = Math.floor(durationSec / 60);
+        const seconds = durationSec % 60;
+        document.getElementById(
+          "game-duration"
+        ).textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+        // 时间
+        if (game.gameCreation) {
+          document.getElementById("game-time").textContent = formatGameTime(
+            game.gameCreation
+          );
+        }
+
+        // 对局ID
+        if (game.gameId) {
+          document.getElementById(
+            "game-id"
+          ).textContent = `对局ID: ${game.gameId}`;
+        }
+
+        // 渲染对局内容
+        const gameContent = document.getElementById("game-content");
+
+        if (isCherryMode) {
+          gameContent.innerHTML = renderCherryMode(game);
+        } else {
+          gameContent.innerHTML = renderNormalMode(game);
+        }
+      }
+
+      function getModeDisplayName(mode) {
+        const modeMap = {
+          CLASSIC: "经典模式",
+          ARAM: "极地大乱斗",
+          KIWI: "海克斯大乱斗",
+          CHERRY: "斗魂竞技场 (2v2v2v2)",
+          URF: "无限火力",
+          ONEFORALL: "克隆模式",
+          NEXUSBLITZ: "激斗峡谷",
+        };
+        return modeMap[mode] || mode;
+      }
+
+      function renderGameModeBadge(mode) {
+        const displayName = getModeDisplayName(mode);
+        const meta = MODE_ICON_MAP[mode] || MODE_ICON_MAP._default;
+        const badgeStyleAttr = meta.badge
+          ? ` style="background: ${meta.badge};"`
+          : "";
+        const iconStyleParts = [];
+        if (meta.iconBg) iconStyleParts.push(`background: ${meta.iconBg}`);
+        if (meta.iconColor) iconStyleParts.push(`color: ${meta.iconColor}`);
+        const iconStyleAttr = iconStyleParts.length
+          ? ` style="${iconStyleParts.join("; ")}"`
+          : "";
+        return `<span class="game-mode-badge"${badgeStyleAttr}><span class="game-mode-icon"${iconStyleAttr}><i class="${meta.icon}"></i></span><span class="game-mode-label">${displayName}</span></span>`;
+      }
+
+      // CHERRY 模式渲染
+      function renderCherryMode(game) {
+        const participants = game.participants || [];
+
+        // 按子队伍分组
+        const subteams = {};
+        participants.forEach((p) => {
+          const subteamId = (p.stats && p.stats.playerSubteamId) || 0;
+          if (!subteams[subteamId]) {
+            subteams[subteamId] = {
+              players: [],
+              placement: (p.stats && p.stats.subteamPlacement) || 0,
+            };
+          }
+          subteams[subteamId].players.push(p);
+        });
+
+        // 排序
+        const sortedSubteams = Object.entries(subteams)
+          .map(([id, data]) => ({ subteamId: id, ...data }))
+          .sort((a, b) => a.placement - b.placement);
+
+        const winningSubteams = sortedSubteams.filter((t) => t.placement <= 4);
+        const losingSubteams = sortedSubteams.filter((t) => t.placement > 4);
+
+        return `
+            <div class="row">
+                <div class="col-md-6 team-section">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h4 style="color: var(--win-color);">
+                            <i class="bi bi-trophy-fill"></i> 获胜队伍 (前4名)
+                        </h4>
+                    </div>
+                    ${winningSubteams
+                      .map((st) => renderSubteam(st, true))
+                      .join("")}
+                </div>
+                <div class="col-md-6 team-section">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h4 style="color: var(--loss-color);">
+                            <i class="bi bi-x-circle-fill"></i> 失败队伍 (后4名)
+                        </h4>
+                    </div>
+                    ${losingSubteams
+                      .map((st) => renderSubteam(st, false))
+                      .join("")}
+                </div>
+            </div>
+        `;
+      }
+
+      function renderSubteam(subteam, isWinning) {
+        const rankEmojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"];
+        const rankEmoji =
+          rankEmojis[subteam.placement - 1] || `#${subteam.placement}`;
+
+        return `
+            <div class="subteam-card ${isWinning ? "winning" : "losing"}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h5 style="margin: 0;">
+                        <span class="badge ${
+                          isWinning ? "bg-success" : "bg-secondary"
+                        }">
+                            ${rankEmoji} 排名 ${subteam.placement}
+                        </span>
+                        <!-- 子队信息已移除 -->
+                    </h5>
+                </div>
+                ${subteam.players.map((p) => renderPlayerCard(p)).join("")}
+            </div>
+        `;
+      }
+
+      // 普通模式渲染
+      function renderNormalMode(game) {
+        const participants = game.participants || [];
+        const teamA = participants.filter((p) => p.teamId === 100);
+        const teamB = participants.filter((p) => p.teamId === 200);
+
+        // 判断获胜队伍
+        const teams = game.teams || [];
+        const team100Won = teams.find(
+          (t) =>
+            t.teamId === 100 &&
+            (t.win === true || String(t.win).toLowerCase() === "win")
+        );
+        const team200Won = teams.find(
+          (t) =>
+            t.teamId === 200 &&
+            (t.win === true || String(t.win).toLowerCase() === "win")
+        );
+
+        return `
+            <div class="row">
+                <div class="col-md-6 team-section">
+                    <div class="team-header blue">
+                        <h4>
+                            <i class="bi bi-circle-fill"></i> 蓝色方
+                        </h4>
+                        ${
+                          team100Won
+                            ? '<span class="badge bg-success">胜利</span>'
+                            : '<span class="badge bg-danger">失败</span>'
+                        }
+                    </div>
+                    ${teamA.map((p) => renderPlayerCard(p)).join("")}
+                </div>
+                <div class="col-md-6 team-section">
+                    <div class="team-header red">
+                        <h4>
+                            <i class="bi bi-circle-fill"></i> 红色方
+                        </h4>
+                        ${
+                          team200Won
+                            ? '<span class="badge bg-success">胜利</span>'
+                            : '<span class="badge bg-danger">失败</span>'
+                        }
+                    </div>
+                    ${teamB.map((p) => renderPlayerCard(p)).join("")}
+                </div>
+            </div>
+        `;
+      }
+
+      // 渲染玩家卡片
+      function renderPlayerCard(p) {
+        const stats = p.stats || {};
+        const k = stats.kills || p.kills || 0;
+        const d = stats.deaths || p.deaths || 0;
+        const a = stats.assists || p.assists || 0;
+
+        // KDA 计算
+        const ratio = d > 0 ? (k + a) / d : k + a;
+        const ratioNum = Math.round(ratio * 100) / 100;
+        let kdaClass = "bad";
+        if (d === 0 && (k > 0 || a > 0)) kdaClass = "perfect";
+        else if (ratioNum >= 5) kdaClass = "excellent";
+        else if (ratioNum >= 3) kdaClass = "good";
+
+        // MVP判断（最高KDA或最高伤害）
+        const damage =
+          stats.totalDamageDealtToChampions ||
+          p.totalDamageDealtToChampions ||
+          0;
+        const isMVP = false; // 可以根据需要实现MVP逻辑
+
+        // 英雄信息
+        const champKey =
+          (p.championId && CHAMPION_MAP[p.championId]) ||
+          p.champion ||
+          p.championName ||
+          "";
+        const champImg = champKey
+          ? `https://ddragon.leagueoflegends.com/cdn/15.21.1/img/champion/${champKey}.png`
+          : "";
+        const champLevel = stats.champLevel || p.champLevel || 1;
+
+        // 召唤师信息
+        const summonerName =
+          p.summonerName ||
+          (p.player &&
+            (p.player.gameName
+              ? p.player.gameName +
+                (p.player.tagLine ? "#" + p.player.tagLine : "")
+              : p.player.summonerName)) ||
+          "未知";
+        const puuid = p.puuid || (p.player && p.player.puuid) || "";
+        const profileIcon =
+          p.profileIcon ||
+          (p.player && p.player.profileIcon) ||
+          p.profileIconId ||
+          29;
+
+        // 位置信息
+        const role = p.role || "";
+        const lane = p.lane || "";
+        const position = role || lane ? `${role} ${lane}`.trim() : "";
+
+        // 物品
+        const items = [];
+        if (stats) {
+          for (let i = 0; i < 7; i++) {
+            const itemId = stats["item" + i];
+            if (itemId) items.push(itemId);
+          }
+        }
+
+        // 统计数据
+        const gold = stats.goldEarned || p.gold || 0;
+        const cs =
+          (stats.totalMinionsKilled || 0) + (stats.neutralMinionsKilled || 0) ||
+          p.cs ||
+          0;
+        const heal = stats.totalHeal || p.totalHeal || 0;
+        const vision = stats.visionScore || p.visionScore || 0;
+
+        // 海克斯天赋
+        const augments = [];
+        if (stats) {
+          for (let i = 1; i <= 6; i++) {
+            const augId = stats["playerAugment" + i];
+            const augIconUrl = stats["augmentIcon" + i];
+            const augName = stats["augmentName" + i];
+            const augDesc = stats["augmentDesc" + i];
+            if (augId && augId > 0) {
+              augments.push({
+                id: augId,
+                iconUrl: augIconUrl,
+                name: augName,
+                desc: augDesc,
+              });
+            }
+          }
+        }
+
+        return `
+            <div class="player-card ${isMVP ? "mvp" : ""}">
+                <div class="player-info">
+                    <img src="https://ddragon.leagueoflegends.com/cdn/15.21.1/img/profileicon/${profileIcon}.png" 
+                         class="profile-icon" 
+                         onerror="this.src='https://ddragon.leagueoflegends.com/cdn/15.21.1/img/profileicon/29.png'">
+                    <div class="champion-avatar">
+                        ${
+                          champImg
+                            ? `<img src="${champImg}" onerror="this.style.display='none'">`
+                            : ""
+                        }
+                        <div class="champion-level">${champLevel}</div>
+                    </div>
+                    <div class="player-name-info">
+                        <a href="/summoner/${encodeURIComponent(
+                          summonerName
+                        )}?puuid=${encodeURIComponent(puuid)}" 
+                           class="name" target="_blank">${summonerName}</a>
+                        ${position ? `<div class="role">${position}</div>` : ""}
+                        ${
+                          augments.length > 0
+                            ? `
+                            <div class="augments-container">
+                                ${augments
+                                  .map(
+                                    (aug) => `
+                                    <img src="${aug.iconUrl}" 
+                                         class="augment-icon" 
+                                         title="${
+                                           aug.name
+                                             ? aug.name +
+                                               (aug.desc
+                                                 ? "\\n" +
+                                                   aug.desc
+                                                     .replace(/<[^>]+>/g, "")
+                                                     .substring(0, 200)
+                                                 : "")
+                                             : "海克斯天赋 " + aug.id
+                                         }"
+                                         onerror="this.style.display='none'">
+                                `
+                                  )
+                                  .join("")}
+                            </div>
+                        `
+                            : ""
+                        }
+                    </div>
+                </div>
+                
+        <div class="kda-display">
+          <div class="kda-icon ${kdaClass}">
+            <i class="bi bi-sword"></i>
+          </div>
+                    <div class="kda-numbers ${kdaClass}">${k} / ${d} / ${a}</div>
+                    <div class="kda-ratio">${ratioNum.toFixed(2)} KDA</div>
+                </div>
+                
+                <div class="items-display">
+                    ${items
+                      .slice(0, 7)
+                      .map(
+                        (itemId) => `
+                        <div class="item-slot">
+                            <img src="https://ddragon.leagueoflegends.com/cdn/15.21.1/img/item/${itemId}.png" 
+                                 onerror="this.style.display='none'">
+                        </div>
+                    `
+                      )
+                      .join("")}
+                    ${Array(Math.max(0, 7 - items.length))
+                      .fill('<div class="item-slot"></div>')
+                      .join("")}
+                </div>
+                
+                <div class="stats-display">
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="bi bi-coin"></i> 金币</span>
+                        <span class="stat-value">${fmt(gold)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="bi bi-minecart"></i> 补刀</span>
+                        <span class="stat-value">${cs}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="bi bi-lightning"></i> 伤害</span>
+                        <span class="stat-value">${fmt(damage)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="bi bi-eye"></i> 视野</span>
+                        <span class="stat-value">${vision}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+      }
+
+      document.addEventListener("DOMContentLoaded", loadMatch);
+    </script>
+  </body>
+</html>

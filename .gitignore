@@ -1,0 +1,16 @@
+.venv/
+venv/
+env/
+
+*.pyc
+*__pycache__
+
+
+/dist
+/build
+/html
+*.egg-info/
+*.egg
+*.whl
+/runs
+*.py.bak

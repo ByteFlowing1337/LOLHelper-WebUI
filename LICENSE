@@ -1,0 +1,44 @@
+================================================================================
+项目名称: LOLHelper WebUI
+版本信息: 0.1.0 
+发布日期: 2025年10月 
+版权所有: (c) 2025 ByteFlowing1337
+================================================================================
+
+此文件包含本项目的许可证信息。
+
+-------------------------------- MIT 许可证 --------------------------------
+
+MIT License
+
+Copyright (c) 2025 ByteFlowing1337
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+
+**发布说明 (Release Notes)**
+本版本是 LOLHelper WebUI 的初始发布 。
+
+功能包括：
+1. 自动接受对局。
+2. 敌我战绩快速查询分析。
+3. 实时对局信息展示 (WebSocket 推送)。
+
+请参阅项目的 `README.md` 文件获取详细的**快速开始**和**使用指南**。

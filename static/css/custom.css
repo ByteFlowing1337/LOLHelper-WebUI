@@ -1,0 +1,74 @@
+:root{
+  --kda-good:#2ecc71;
+  --kda-mid:#f1c40f;
+  --kda-bad:#e67e22;
+  --meta-bg:#f8f9fa;
+}
+/* Player link looks like plain text but is clickable */
+.player-link{ color:inherit; text-decoration:none; }
+/* Champion wrapper & level */
+.champion-wrapper{ position:relative; display:inline-block; }
+.level-badge{ position:absolute; right:-6px; bottom:-6px; background:rgba(0,0,0,0.75); color:#fff; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.85rem; border:2px solid #fff; }
+/* KDA badge styles */
+.kda-badge{ padding:6px 10px; border-radius:8px; font-weight:700; color:#222; box-shadow:0 2px 6px rgba(0,0,0,0.08); display:inline-block; }
+.kda-good{ background:linear-gradient(90deg,var(--kda-good), #27ae60); color:#fff; }
+.kda-mid{ background:linear-gradient(90deg,var(--kda-mid), #f39c12); color:#222; }
+.kda-bad{ background:linear-gradient(90deg,var(--kda-bad), #d35400); color:#fff; }
+/* Items layout */
+.items-col{ display:flex; gap:4px; align-items:center; }
+.item-icon{ width:32px; height:32px; }
+/* Champion and profile images */
+.champion-icon{ width:48px; height:48px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.12); }
+.profile-img{ width:40px; height:40px; border-radius:50%; object-fit:cover; }
+/* placeholder for missing profile icon */
+.profile-placeholder{ width:40px; height:40px; border-radius:50%; background:#ddd; display:inline-block; }
+/* Player name: keep on one line and ellipsize if too long */
+.player-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; max-width:140px; }
+/* Prominent KDA shown under items */
+.kda-prominent{ display:inline-block; padding:6px 8px; border-radius:8px; font-weight:800; margin-top:6px; }
+.btn-more{ font-size:0.85rem; }
+
+/* Match table row layout - compact single-line rows */
+.match-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; }
+.match-row + .match-row{ border-top:1px solid rgba(0,0,0,0.04); }
+.match-row .col-player-info{ display:flex; align-items:center; gap:8px; min-width:160px; max-width:260px; }
+.match-row .col-player-info .player-link img{ width:32px; height:32px; border-radius:50%; }
+.match-row .col-champion{ display:flex; align-items:center; gap:8px; min-width:64px; }
+.match-row .col-champion .champion-icon{ width:40px; height:40px; border-radius:6px; }
+/* New KDA column between champion and items */
+.match-row .col-kda{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:80px; text-align:center; }
+.match-row .col-kda .kda-prominent{ font-weight:800; padding:4px 8px; border-radius:6px; margin-bottom:2px; }
+.match-row .col-kda .small-muted{ font-size:0.8rem; color:#6c757d; }
+/* Items wrapper with stats below */
+.match-row .col-items-wrapper{ display:flex; flex-direction:column; gap:4px; flex:1 1 auto; overflow:hidden; }
+.match-row .items-row{ display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+.match-row .items-row .item-icon{ width:28px; height:28px; border-radius:4px; border:1px solid #ddd; }
+.match-row .stats-row{ font-size:0.82rem; color:#6c757d; white-space:nowrap; }
+.match-row .player-name{ font-weight:700; color:var(--bs-body-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+.match-row .small-muted{ color:rgba(0,0,0,0.6); font-size:0.82rem; }
+
+/* compact helpers */
+.kda-prominent{ font-weight:800; padding:2px 6px; border-radius:6px; }
+.stats-bottom{ font-weight:600; }
+
+/* visual polish */
+.match-row{ background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0)); }
+.match-row:hover{ background:linear-gradient(90deg, rgba(0,0,0,0.02), rgba(0,0,0,0)); transform:translateY(-1px); }
+.win-row .kda-prominent{ box-shadow:0 2px 6px rgba(46,204,113,0.12); }
+.loss-row .kda-prominent{ box-shadow:0 2px 6px rgba(230,126,34,0.12); }
+.col-stats .small-muted{ color:#6c757d; }
+.items-row img{ display:block; }
+
+/* Alternate background tint for team rows */
+.team-separator{ background:linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0)); padding:6px 10px; border-radius:6px; margin:6px 0; font-weight:700; }
+/* Meta badges inline and responsive */
+.meta-row{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+.meta-badge{ font-size:0.85rem; padding:0.25rem 0.5rem; background:var(--meta-bg); border-radius:6px; border:1px solid #e9ecef; }
+.meta-badge.success{ background:#e6ffed; }
+.meta-badge.warn{ background:#fff7e6; }
+/* Utility */
+.text-muted.small { font-size:0.85rem; }
+@media (max-width:720px){
+  .items-col{ gap:6px; }
+  .kda-badge{ padding:4px 8px; }
+}
