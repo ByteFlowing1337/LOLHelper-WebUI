@@ -3,6 +3,70 @@
 处理游戏API返回的数据，提取玩家详细信息
 """
 
+
+def _extract_subteam_id(player_data):
+    """尝试从 liveclient 玩家数据中提取斗魂竞技场的小队编号。"""
+    if not isinstance(player_data, dict):
+        return None
+
+    candidate_keys = [
+        "playerSubteamId",
+        "subteamId",
+        "subTeamId",
+        "subteamID",
+        "arenaTeamId",
+        "teamId",
+    ]
+
+    def _coerce(value):
+        if value in (None, "", -1):
+            return None
+        if isinstance(value, dict):
+            for inner_key in ("id", "teamId", "subteamId"):
+                inner_val = value.get(inner_key)
+                if inner_val not in (None, "", -1):
+                    try:
+                        return int(inner_val)
+                    except (TypeError, ValueError):
+                        return None
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    for key in candidate_keys:
+        subteam_val = player_data.get(key)
+        coerced = _coerce(subteam_val)
+        if coerced is not None:
+            return coerced
+
+    # 某些模式会把 subteam 信息塞进嵌套字段
+    nested_sources = [
+        player_data.get("scores"),
+        player_data.get("team"),
+        player_data.get("championStats"),
+    ]
+
+    for candidate in nested_sources:
+        if not isinstance(candidate, dict):
+            continue
+        for key in candidate_keys:
+            coerced = _coerce(candidate.get(key))
+            if coerced is not None:
+                return coerced
+
+    raw_team = player_data.get("team")
+    if isinstance(raw_team, str):
+        digits = "".join(ch for ch in raw_team if ch.isdigit())
+        if digits:
+            try:
+                return int(digits)
+            except ValueError:
+                return None
+
+    return None
+
 def format_player_info(player_data, active_player_name):
     """
     格式化单个玩家的详细信息
@@ -98,8 +162,14 @@ def format_player_info(player_data, active_player_name):
         })
     
     # 提取队伍信息
-    team = player_data.get('team', 'UNKNOWN')
+    raw_team = player_data.get('team', 'UNKNOWN')
+    team = raw_team
+    if isinstance(raw_team, dict):
+        team = raw_team.get('name') or raw_team.get('displayName') or 'UNKNOWN'
+    elif not team:
+        team = 'UNKNOWN'
     position = player_data.get('position', 'NONE')
+    subteam_id = _extract_subteam_id(player_data)
     
     # 判断是否为当前玩家
     is_current_player = (summoner_name == active_player_name)
@@ -128,7 +198,9 @@ def format_player_info(player_data, active_player_name):
         'spell2': spell_two.get('displayName', ''),
         'augments': augments,  # KIWI模式增强列表
         'team': team,
+        'teamRaw': raw_team,
         'position': position,
+        'subteamId': subteam_id,
         'isCurrentPlayer': is_current_player
     }
 
@@ -165,25 +237,61 @@ def format_game_data(all_game_data):
             active_player_team = player.get('team', '')
             break
     
-    # 分类玩家
-    teammates = []
-    enemies = []
-    
+    structured_players = []
+    active_player_entry = None
+
     for player in all_players:
         if not player:  # 跳过空玩家数据
             continue
-        
+
         try:
             formatted_player = format_player_info(player, active_player_name)
-            
-            if player.get('team') == active_player_team:
-                teammates.append(formatted_player)
-            else:
-                enemies.append(formatted_player)
+            structured_players.append((player, formatted_player))
+
+            if player.get('summonerName') == active_player_name:
+                active_player_entry = formatted_player
+                # 覆写一次 team，避免上面没找到
+                active_player_team = player.get('team', active_player_team)
         except Exception as e:
             # 记录错误但继续处理其他玩家
             print(f"⚠️ 格式化玩家数据失败 ({player.get('summonerName', 'Unknown')}): {e}")
             continue
+
+    teammates = []
+    enemies = []
+
+    game_mode = game_data.get('gameMode', 'CLASSIC') if isinstance(game_data, dict) else 'CLASSIC'
+    game_mode_key = str(game_mode).upper()
+
+    active_subteam_id = None
+    if active_player_entry:
+        active_subteam_id = active_player_entry.get('subteamId')
+
+    use_cherry_subteams = (
+        game_mode_key == 'CHERRY'
+        and active_subteam_id not in (None, -1)
+        and any(
+            formatted.get('subteamId') not in (None, active_subteam_id)
+            for _, formatted in structured_players
+        )
+    )
+
+    for raw_player, formatted_player in structured_players:
+        if use_cherry_subteams:
+            if formatted_player.get('subteamId') == active_subteam_id:
+                teammates.append(formatted_player)
+            else:
+                enemies.append(formatted_player)
+            continue
+
+        # 默认逻辑：根据 team 区分
+        player_team = raw_player.get('team')
+        if active_player_team and player_team == active_player_team:
+            teammates.append(formatted_player)
+        elif formatted_player.get('isCurrentPlayer'):
+            teammates.append(formatted_player)
+        else:
+            enemies.append(formatted_player)
     
     # 提取游戏信息
     game_info = {
@@ -220,7 +328,8 @@ def format_game_data(all_game_data):
         'enemies': enemies,
         'gameInfo': game_info,
         'recentKills': recent_kills,
-        'activePlayerTeam': active_player_team
+        'activePlayerTeam': active_player_team,
+        'activePlayerSubteam': active_subteam_id
     }
 
 

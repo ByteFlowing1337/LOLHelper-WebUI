@@ -149,6 +149,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       let refreshInterval;
+      let currentGameMode = "";
 
       async function loadGameData() {
         try {
@@ -169,6 +170,7 @@
       }
 
       function displayGameData(data) {
+        currentGameMode = (data.gameInfo.mode || "").toUpperCase();
         // 显示游戏信息
         document.getElementById("game-mode").textContent = data.gameInfo.mode;
         document.getElementById("game-time").textContent = formatTime(
@@ -203,13 +205,25 @@
       }
 
       function displayTeam(containerId, players, teamSide) {
+        const isCherryMode = currentGameMode === "CHERRY";
         const container = document.getElementById(containerId);
         if (!players || players.length === 0) {
           container.innerHTML = '<p class="text-muted">暂无数据</p>';
           return;
         }
 
-        container.innerHTML = players
+        const orderedPlayers = isCherryMode
+          ? [...players].sort((a, b) => {
+              const subA = a.subteamId ?? 999;
+              const subB = b.subteamId ?? 999;
+              if (subA !== subB) {
+                return subA - subB;
+              }
+              return (a.gameName || "").localeCompare(b.gameName || "");
+            })
+          : players;
+
+        container.innerHTML = orderedPlayers
           .map((player) => {
             const kdaRatio =
               player.deaths > 0
@@ -222,6 +236,12 @@
             const respawnText =
               player.isDead && player.respawnTimer > 0
                 ? `<span class="badge bg-danger">复活: ${player.respawnTimer}s</span>`
+                : "";
+            const subteamBadge =
+              isCherryMode &&
+              player.subteamId !== null &&
+              player.subteamId !== undefined
+                ? `<span class="badge bg-info text-dark ms-2">小队 ${player.subteamId}</span>`
                 : "";
 
             // OP.GG integration removed: no external badges
@@ -263,6 +283,7 @@
                                         : ""
                                     }
                                     ${respawnText}
+                                    ${subteamBadge}
                                 </h6>
                                 <p class="mb-1 small text-muted">
                                     <strong>${player.champion}</strong>
