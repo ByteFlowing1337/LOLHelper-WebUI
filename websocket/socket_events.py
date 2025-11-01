@@ -65,11 +65,19 @@ def register_socket_events(socketio):
                 print("❌ 尝试启动自动接受失败：LCU 未连接")
                 return
 
-            # 检查线程是否真的在运行
-            is_running = (app_state.auto_accept_thread is not None 
-                         and app_state.auto_accept_thread.is_alive())
-            
-            if not is_running:
+            thread = app_state.auto_accept_thread
+            if thread and not thread.is_alive():
+                app_state.auto_accept_thread = None
+                thread = None
+
+            if thread and thread.is_alive():
+                if app_state.auto_accept_enabled:
+                    emit('status_update', {'type': 'biz', 'message': '⚠️ 自动接受功能已在运行中'})
+                else:
+                    app_state.auto_accept_enabled = True
+                    emit('status_update', {'type': 'biz', 'message': '✅ 自动接受对局功能已重新开启'})
+                    print("🎮 自动接受对局功能已重新激活现有线程")
+            else:
                 app_state.auto_accept_enabled = True
                 app_state.auto_accept_thread = threading.Thread(
                     target=auto_accept_task,
@@ -79,8 +87,6 @@ def register_socket_events(socketio):
                 app_state.auto_accept_thread.start()
                 emit('status_update', {'type': 'biz', 'message': '✅ 自动接受对局功能已开启'})
                 print("🎮 自动接受对局功能已启动")
-            else:
-                emit('status_update', {'type': 'biz', 'message': '⚠️ 自动接受功能已在运行中'})
 
     
     @socketio.on('start_auto_analyze')
@@ -93,11 +99,20 @@ def register_socket_events(socketio):
                 print("❌ 尝试启动敌我分析失败：LCU 未连接")
                 return
 
-            # 检查线程是否真的在运行
-            is_running = (app_state.auto_analyze_thread is not None 
-                         and app_state.auto_analyze_thread.is_alive())
-            
-            if not is_running:
+            thread = app_state.auto_analyze_thread
+            if thread and not thread.is_alive():
+                app_state.auto_analyze_thread = None
+                thread = None
+
+            if thread and thread.is_alive():
+                if app_state.auto_analyze_enabled:
+                    emit('status_update', {'type': 'biz', 'message': '⚠️ 敌我分析功能已在运行中'})
+                else:
+                    app_state.reset_analysis_state()
+                    app_state.auto_analyze_enabled = True
+                    emit('status_update', {'type': 'biz', 'message': '✅ 敌我分析功能已重新开启'})
+                    print("🔍 敌我分析功能已重新激活现有线程")
+            else:
                 # 重置分析状态，允许重新分析
                 app_state.reset_analysis_state()
                 app_state.auto_analyze_enabled = True
@@ -109,8 +124,6 @@ def register_socket_events(socketio):
                 app_state.auto_analyze_thread.start()
                 emit('status_update', {'type': 'biz', 'message': '✅ 敌我分析功能已开启'})
                 print("🔍 敌我分析功能已启动")
-            else:
-                emit('status_update', {'type': 'biz', 'message': '⚠️ 敌我分析功能已在运行中'})
     
     @socketio.on('stop_auto_accept')
     def handle_stop_auto_accept():

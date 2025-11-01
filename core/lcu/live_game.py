@@ -6,6 +6,8 @@
 import requests
 import urllib3
 
+from utils.game_data_formatter import format_game_data
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -58,6 +60,13 @@ def get_enemy_players_from_game():
         active_player = game_data.get('activePlayer', {})
         my_summoner_name = active_player.get('summonerName', '')
         game_mode = game_data.get('gameData', {}).get('gameMode', 'CLASSIC')
+        snapshot = format_game_data(game_data)
+        formatted_enemies = snapshot.get('enemies', []) if isinstance(snapshot, dict) else []
+        formatted_lookup = {
+            entry.get('summonerName'): entry
+            for entry in formatted_enemies
+            if isinstance(entry, dict)
+        }
         
         # 找到当前玩家的队伍
         my_team = None
@@ -75,10 +84,16 @@ def get_enemy_players_from_game():
             print(f"🍒 CHERRY 模式 (2v2v2v2v2v2v2v2)：当前队伍 {my_team}，查找其他队伍")
         
         # 筛选出敌方玩家（队伍不同的玩家）
-        enemy_players = [
-            player for player in all_players 
-            if player.get('team', '') != my_team
-        ]
+        if is_cherry_mode and formatted_lookup:
+            enemy_players = [
+                player for player in all_players
+                if player.get('summonerName') in formatted_lookup
+            ]
+        else:
+            enemy_players = [
+                player for player in all_players 
+                if player.get('team', '') != my_team
+            ]
         
         mode_suffix = " (CHERRY 模式 - 16人)" if is_cherry_mode else ""
         print(f"找到 {len(enemy_players)} 名敌方玩家{mode_suffix}")
@@ -167,43 +182,138 @@ def get_all_players_from_game(token, port):
         
         print(f"🎮 当前玩家队伍: {my_team_side} (模式: {game_mode})")
         
-        # 根据队伍分类玩家
+        snapshot = format_game_data(game_data)
+        formatted_teammates = snapshot.get('teammates', []) if isinstance(snapshot, dict) else []
+        formatted_enemies = snapshot.get('enemies', []) if isinstance(snapshot, dict) else []
+        active_player_team = snapshot.get('activePlayerTeam', my_team_side)
+        active_player_subteam = snapshot.get('activePlayerSubteam')
+
+        my_team_side = active_player_team or my_team_side
+
+        formatted_lookup = {
+            entry.get('summonerName'): entry
+            for entry in (formatted_teammates + formatted_enemies)
+            if isinstance(entry, dict)
+        }
+
+        use_subteams = (
+            is_cherry_mode
+            and active_player_subteam not in (None, -1)
+            and formatted_enemies
+        )
+
+        if is_cherry_mode:
+            subteam_counts = {}
+            for entry in formatted_lookup.values():
+                sub_id = entry.get('subteamId')
+                if sub_id in (None, -1):
+                    continue
+                subteam_counts[sub_id] = subteam_counts.get(sub_id, 0) + 1
+            if not formatted_enemies:
+                print("⚠️ CHERRY 子队分类失败，尝试使用传统队伍字段作为回退逻辑")
+
+            if subteam_counts:
+                formatted_counts = ", ".join(
+                    [f"S{sub_id}:{count}" for sub_id, count in sorted(subteam_counts.items())]
+                )
+                print(f"🍒 子队统计: {formatted_counts}")
+
         teammate_list = []
         enemy_list = []
-        
-        for player in all_players:
-            summoner_name = player.get('summonerName', '未知')
-            player_team = player.get('team', '')
-            
-            # 获取PUUID
-            puuid = get_puuid(token, port, summoner_name)
-            
-            # 解析游戏名和标签
-            if '#' in summoner_name:
+
+        def build_player_info(entry, default_team):
+            summoner_name = entry.get('summonerName', '未知')
+            raw_game_name = entry.get('gameName')
+            raw_tag = entry.get('tagLine')
+
+            if raw_game_name and raw_tag:
+                game_name = raw_game_name
+                tag_line = raw_tag
+            elif '#' in summoner_name:
                 parts = summoner_name.split('#', 1)
                 game_name = parts[0]
                 tag_line = parts[1] if len(parts) > 1 else 'NA'
             else:
                 game_name = summoner_name
                 tag_line = 'NA'
-            
-            player_info = {
+
+            puuid = get_puuid(token, port, summoner_name)
+            champion = (
+                entry.get('champion')
+                or entry.get('championName')
+                or entry.get('championRaw')
+                or '未知'
+            )
+            team_label = entry.get('team') or default_team or 'UNKNOWN'
+            subteam_id = entry.get('subteamId')
+
+            return {
                 'summonerName': summoner_name,
                 'gameName': game_name,
                 'tagLine': tag_line,
                 'puuid': puuid,
-                'championName': player.get('championName', '未知'),
-                'level': player.get('level', 0),
-                'team': player_team
+                'championName': champion,
+                'level': entry.get('level', 0),
+                'team': team_label,
+                'subteamId': subteam_id
             }
-            
-            # 根据队伍字段分类
-            if player_team == my_team_side:
-                teammate_list.append(player_info)
-                print(f"👥 队友: {summoner_name} ({player.get('championName', '未知')}) [队伍: {player_team}]")
-            else:
-                enemy_list.append(player_info)
-                print(f"💥 敌人: {summoner_name} ({player.get('championName', '未知')}) [队伍: {player_team}]")
+
+        if formatted_teammates or formatted_enemies:
+            for entry in formatted_teammates:
+                info = build_player_info(entry, my_team_side)
+                teammate_list.append(info)
+                team_desc = (
+                    f"小队 {info['subteamId']}"
+                    if use_subteams and info.get('subteamId') not in (None, -1)
+                    else info['team']
+                )
+                print(f"👥 队友: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
+
+            for entry in formatted_enemies:
+                info = build_player_info(entry, None)
+                enemy_list.append(info)
+                team_desc = (
+                    f"小队 {info['subteamId']}"
+                    if info.get('subteamId') not in (None, -1)
+                    else info['team']
+                )
+                print(f"💥 敌人: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
+
+        if is_cherry_mode and not enemy_list:
+            print("⚠️ 使用回退逻辑重新分类 CHERRY 模式玩家")
+            for player in all_players:
+                summoner_name = player.get('summonerName', '未知')
+                player_team = player.get('team', '')
+                formatted_entry = formatted_lookup.get(summoner_name, {})
+
+                merged_entry = {
+                    'summonerName': summoner_name,
+                    'gameName': formatted_entry.get('gameName'),
+                    'tagLine': formatted_entry.get('tagLine'),
+                    'champion': formatted_entry.get('champion') or player.get('championName'),
+                    'level': formatted_entry.get('level') or player.get('level', 0),
+                    'team': formatted_entry.get('team') or player_team,
+                    'subteamId': formatted_entry.get('subteamId')
+                }
+
+                info = build_player_info(merged_entry, player_team)
+
+                if player_team == my_team_side:
+                    teammate_list.append(info)
+                    team_desc = (
+                        f"小队 {info['subteamId']}"
+                        if info.get('subteamId') not in (None, -1)
+                        else info['team']
+                    )
+                    print(f"👥 队友: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
+                else:
+                    enemy_list.append(info)
+                    team_desc = (
+                        f"小队 {info['subteamId']}"
+                        if info.get('subteamId') not in (None, -1)
+                        else info['team']
+                    )
+                    print(f"💥 敌人: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
         
         mode_info = f"({game_mode})" if is_cherry_mode else f"({my_team_side})"
         print(f"✅ 成功获取 {len(teammate_list)} 名队友和 {len(enemy_list)} 名敌人 {mode_info}")

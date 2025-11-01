@@ -16,25 +16,31 @@ def auto_analyze_task(socketio):
     enemy_retry_count = 0
     MAX_ENEMY_RETRIES = 10
     last_phase = None
-    
-    while True:
-        if app_state.auto_analyze_enabled and app_state.is_lcu_connected():
+
+    try:
+        while app_state.auto_analyze_enabled:
+            if not app_state.is_lcu_connected():
+                time.sleep(2)
+                continue
+
+            phase = None
+
             try:
                 token = app_state.lcu_credentials["auth_token"]
                 port = app_state.lcu_credentials["app_port"]
-                
+
                 phase = lcu.get_gameflow_phase(token, port)
-                
+
                 # 检测到新的游戏流程开始，重置状态
                 if last_phase in ["Lobby", "None", None] and phase not in ["Lobby", "None"]:
                     app_state.reset_analysis_state()
                     enemy_retry_count = 0
                     print(f"🔄 检测到新游戏流程开始 ({last_phase} -> {phase})，重置分析状态")
-                
+
                 # ChampSelect 阶段：分析队友战绩
                 elif phase == "ChampSelect" and not app_state.teammate_analysis_done:
                     _analyze_teammates(token, port, socketio)
-                
+
                 # InProgress/GameStart 阶段：分析敌人战绩
                 elif phase in ["InProgress", "GameStart"] and not app_state.enemy_analysis_done:
                     if enemy_retry_count < MAX_ENEMY_RETRIES:
@@ -47,13 +53,13 @@ def auto_analyze_task(socketio):
                         socketio.emit('status_update', {'type': 'biz', 'message': '❌ 无法获取敌方信息，已停止重试'})
                         app_state.enemy_analysis_done = True
                         print(f"❌ 达到最大重试次数 ({MAX_ENEMY_RETRIES})，停止尝试")
-                
+
                 # EndOfGame 阶段：显示提示
                 elif phase == "EndOfGame":
                     if app_state.teammate_analysis_done or app_state.enemy_analysis_done:
                         socketio.emit('status_update', {'type': 'biz', 'message': '🏁 比赛结束，等待下一局...'})
                         print("🏁 游戏结束")
-                
+
                 # 更新上一次的阶段
                 last_phase = phase
 
@@ -62,14 +68,20 @@ def auto_analyze_task(socketio):
                 socketio.emit('status_update', {'type': 'biz', 'message': f'❌ {error_msg}'})
                 print(f"❌ 异常: {error_msg}")
                 time.sleep(5)
-            
+                continue
+
+            if not app_state.auto_analyze_enabled:
+                break
+
             # 循环等待时间
             if phase in ["InProgress", "GameStart"] and not app_state.enemy_analysis_done:
                 time.sleep(1)
             else:
                 time.sleep(2)
-        else:
-            time.sleep(2)
+    finally:
+        app_state.auto_analyze_thread = None
+        app_state.auto_analyze_enabled = False
+        print("🛑 敌我分析任务已退出")
 
 
 def _analyze_teammates(token, port, socketio):
