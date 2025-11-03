@@ -153,22 +153,83 @@ def get_summoner_by_name(token, port, name):
     return make_request("GET", endpoint, token, port, params={'name': name})
 
 
-def get_ranked_stats(token, port, summoner_id):
+def _normalize_ranked_payload(payload, endpoint_tag):
+    """将不同端点返回的数据统一为包含 queues 列表的字典。"""
+    if not payload:
+        return None
+
+    # 直接返回带有 queues 的字典
+    if isinstance(payload, dict) and isinstance(payload.get('queues'), list) and payload['queues']:
+        normalized = dict(payload)
+        normalized['dataSource'] = endpoint_tag
+        return normalized
+
+    queues = []
+    normalized_payload = None
+
+    if isinstance(payload, dict):
+        normalized_payload = dict(payload)
+
+        queue_map = normalized_payload.get('queueMap')
+        if isinstance(queue_map, dict):
+            queues.extend([v for v in queue_map.values() if isinstance(v, dict)])
+
+        queue_summaries = normalized_payload.get('queueSummaries')
+        if isinstance(queue_summaries, list):
+            queues.extend([q for q in queue_summaries if isinstance(q, dict)])
+
+        entries = normalized_payload.get('entries')
+        if isinstance(entries, list):
+            queues.extend([q for q in entries if isinstance(q, dict)])
+
+        if queues:
+            normalized_payload['queues'] = queues
+            normalized_payload['dataSource'] = endpoint_tag
+            return normalized_payload
+
+    elif isinstance(payload, list):
+        queues = [q for q in payload if isinstance(q, dict)]
+        if queues:
+            return {
+                'queues': queues,
+                'dataSource': endpoint_tag,
+                'raw': payload
+            }
+
+    return None
+
+
+def get_ranked_stats(token, port, summoner_id, puuid=None):
     """
-    获取召唤师排位信息。
-    
-    通过召唤师ID获取其排位数据，包括单/双排和灵活排位的段位、分区、胜点等。
-    
+    获取召唤师排位信息（带端点回退逻辑）。
+
     Args:
         token: LCU认证令牌
         port: LCU端口
         summoner_id: 召唤师ID
-    
+        puuid: 可选 PUUID，用于某些端点
+
     Returns:
-        dict: 排位信息，包含 RANKED_SOLO_5x5 和 RANKED_FLEX_SR 等队列数据
-              如果未查询到数据则返回空字典
+        dict: 包含 queues 列表的排位信息
     """
-    endpoint = f"/lol-ranked/v1/ranked-stats/{summoner_id}"
-    result = make_request("GET", endpoint, token, port)
-    return result if result else {}
+    # 逐个尝试常见端点，直到拿到有效数据
+    endpoints = [
+        (f"/lol-ranked/v1/ranked-stats/{summoner_id}", "lol-ranked/v1/ranked-stats"),
+        (f"/lol-ranked/v2/summoner/{summoner_id}", "lol-ranked/v2/summoner"),
+        (f"/lol-league/v1/entries/by-summoner/{summoner_id}", "lol-league/v1/entries/by-summoner"),
+        (f"/lol-league/v1/positions/by-summoner/{summoner_id}", "lol-league/v1/positions/by-summoner"),
+    ]
+
+    if puuid:
+        endpoints.insert(1, (f"/lol-ranked/v1/ranked-stats/by-puuid/{puuid}", "lol-ranked/v1/ranked-stats/by-puuid"))
+
+    for endpoint, tag in endpoints:
+        payload = make_request("GET", endpoint, token, port)
+        normalized = _normalize_ranked_payload(payload, tag)
+        if normalized:
+            if 'raw' not in normalized:
+                normalized['raw'] = payload
+            return normalized
+
+    return {}
 

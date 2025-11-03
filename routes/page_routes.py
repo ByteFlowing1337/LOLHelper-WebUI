@@ -55,7 +55,7 @@ def summoner_detail(summoner_name):
                 # 获取段位信息
                 summoner_id = summoner_data.get('id')
                 if summoner_id:
-                    ranked_stats = lcu.get_ranked_stats(token, port, summoner_id)
+                    ranked_stats = lcu.get_ranked_stats(token, port, summoner_id, puuid=summoner_data.get('puuid'))
                     if ranked_stats and isinstance(ranked_stats, dict):
                         queues = ranked_stats.get('queues', [])
                         for queue in queues:
@@ -78,7 +78,7 @@ def summoner_detail(summoner_name):
                 # 获取段位信息
                 summoner_id = s_data.get('id')
                 if summoner_id:
-                    ranked_stats = lcu.get_ranked_stats(token, port, summoner_id)
+                    ranked_stats = lcu.get_ranked_stats(token, port, summoner_id, puuid=s_data.get('puuid'))
                     if ranked_stats and isinstance(ranked_stats, dict):
                         queues = ranked_stats.get('queues', [])
                         for queue in queues:

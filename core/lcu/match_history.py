@@ -6,6 +6,7 @@ from .client import make_request
 import time
 import base64
 import requests
+from requests.auth import HTTPBasicAuth
 from urllib.parse import quote_plus
 
 # 简单的内存缓存：{puuid: (timestamp, data)}
@@ -74,51 +75,77 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
     
     # 如果没有缓存，请求完整数据
     if all_games is None:
-        endpoint = f"/lol-match-history/v1/products/lol/{puuid}/matches"
-        
-        # LCU API 实际只返回最近20-30场，所以请求50场足够了
-        # 这样可以加快查询速度
-        max_games = 50
-        timeout = 10  # 减少超时时间
-        
-        print(f"📊 首次请求，获取最多 {max_games} 场历史记录...")
-        
-        # 尝试查询，支持重试
-        max_retries = 2
-        for attempt in range(max_retries):
-            try:
-                params = {'endIndex': max_games}
-                
-                result = make_request(
-                    "GET",
-                    endpoint,
-                    token,
-                    port,
-                    params=params,
-                    timeout=timeout
-                )
-                
-                if result:
-                    # 提取游戏列表
-                    games_data = result.get('games', {})
-                    if isinstance(games_data, dict):
-                        all_games = games_data.get('games', [])
-                    else:
-                        all_games = games_data if isinstance(games_data, list) else []
-                    
-                    print(f"✅ API返回 {len(all_games)} 场历史记录")
-                    
-                    # 缓存完整数据
-                    _match_history_cache[full_cache_key] = (time.time(), all_games)
-                    break
-                    
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    print(f"⚠️ 查询失败，1秒后重试... (attempt {attempt + 1}/{max_retries})")
+        endpoint = f"/lol-match-history/v1/products/lol/{quote_plus(puuid)}/matches"
+
+        # 分阶段尝试，先请求较小范围数据，必要时逐步扩大
+        attempt_profiles = [
+            {
+                'endIndex': min(max(count, 20), 30),
+                'timeout': 12,
+                'desc': 'baseline'
+            },
+            {
+                'endIndex': min(max(count + 10, 30), 50),
+                'timeout': 18,
+                'desc': 'expanded'
+            }
+        ]
+
+        auth = HTTPBasicAuth('riot', token)
+
+        for idx, profile in enumerate(attempt_profiles):
+            params = {'begIndex': 0, 'endIndex': profile['endIndex']}
+            timeout = profile['timeout']
+            print(f"📊 请求 {profile['endIndex']} 场历史记录 (profile={profile['desc']}, timeout={timeout}s)...")
+
+            # 先尝试通过统一的 make_request（可复用连接池与日志）
+            result = make_request(
+                "GET",
+                endpoint,
+                token,
+                port,
+                params=params,
+                timeout=timeout
+            )
+
+            # 如果 make_request 超时或返回 None，尝试直接使用 requests (支持更长 timeout)
+            if not result:
+                direct_timeout = min(timeout + 6, 28)
+                url = f"https://127.0.0.1:{port}{endpoint}"
+                try:
+                    print(f"⏳ make_request 无响应，尝试直接请求 (timeout={direct_timeout}s)...")
+                    resp = requests.get(
+                        url,
+                        params=params,
+                        auth=auth,
+                        verify=False,
+                        timeout=direct_timeout
+                    )
+                    resp.raise_for_status()
+                    result = resp.json()
+                except requests.RequestException as exc:
+                    print(f"⚠️ 直接请求失败: {exc}")
+                    if idx == len(attempt_profiles) - 1:
+                        print(f"❌ 查询最终失败 (PUUID={puuid[:8]}...)")
+                        return None
+                    print("⏱️ 等待 1 秒后尝试下一套配置...")
                     time.sleep(1)
+                    continue
+
+            if result:
+                games_data = result.get('games', {})
+                if isinstance(games_data, dict):
+                    all_games = games_data.get('games', [])
                 else:
-                    print(f"❌ 查询最终失败 (PUUID={puuid[:8]}...): {e}")
-                    return None
+                    all_games = games_data if isinstance(games_data, list) else []
+
+                print(f"✅ API返回 {len(all_games)} 场历史记录 (profile={profile['desc']})")
+
+                _match_history_cache[full_cache_key] = (time.time(), all_games)
+                break
+
+        if all_games is None:
+            return None
     
     # 如果还是没有数据，返回None
     if all_games is None:
