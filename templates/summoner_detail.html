@@ -1090,6 +1090,120 @@
           errorDiv.classList.remove("d-none");
           errorText.textContent = "网络错误，请稍后重试";
         }
+        // 异步请求并渲染段位信息（如果服务器端未渲染）
+        try {
+          fetchAndRenderRank();
+        } catch (e) {
+          console.debug("fetchAndRenderRank error", e);
+        }
+      }
+
+      async function fetchAndRenderRank() {
+        try {
+          const headerDiv = document.querySelector(
+            ".header-card .d-flex > div"
+          );
+          if (!headerDiv) return;
+
+          // 如果页面已经由服务端渲染了段位（存在 .ranked-badge），则跳过
+          if (headerDiv.querySelector(".ranked-badge")) return;
+
+          let url = "";
+          if (summonerPuuid && summonerPuuid.length > 0) {
+            url = `/get_summoner_rank?puuid=${encodeURIComponent(
+              summonerPuuid
+            )}`;
+          } else {
+            url = `/get_summoner_rank?name=${encodeURIComponent(summonerName)}`;
+          }
+
+          const resp = await fetch(url);
+          const data = await resp.json();
+          if (!data || !data.success) return;
+
+          // 更新头像与等级（如果有变化）
+          if (data.profile_icon_id) {
+            const img = document.querySelector(".header-card .summoner-icon");
+            if (img) {
+              img.src = `https://ddragon.leagueoflegends.com/cdn/15.21.1/img/profileicon/${data.profile_icon_id}.png`;
+            }
+          }
+          if (data.summoner_level && data.summoner_level > 0) {
+            // 先移除已有等级 badge（以免重复）
+            const existing = headerDiv.querySelector(".summoner-level-badge");
+            if (existing) existing.remove();
+            const levelSpan = document.createElement("span");
+            levelSpan.className = "summoner-level-badge";
+            levelSpan.textContent = `等级 ${data.summoner_level}`;
+            headerDiv.insertBefore(levelSpan, headerDiv.firstChild.nextSibling);
+          }
+
+          // 渲染段位信息
+          const ranked = data.ranked || {};
+          const queues = Array.isArray(ranked.queues)
+            ? ranked.queues
+            : ranked.queues || ranked.entries || [];
+
+          // helper to find queue
+          function findQueue(qtype) {
+            return queues.find(
+              (q) =>
+                q &&
+                (q.queueType === qtype || q.queue === qtype || q.type === qtype)
+            );
+          }
+
+          const solo =
+            findQueue("RANKED_SOLO_5x5") ||
+            findQueue("RANKED_SOLO") ||
+            findQueue("SOLO");
+          const flex =
+            findQueue("RANKED_FLEX_SR") ||
+            findQueue("RANKED_FLEX") ||
+            findQueue("FLEX");
+
+          function makeBadge(text, tier) {
+            const s = document.createElement("span");
+            s.className =
+              "ranked-badge " + (tier ? tier.toLowerCase() : "unranked");
+            s.textContent = text;
+            return s;
+          }
+
+          if (solo) {
+            const tier = (
+              solo.tier ||
+              solo.tierName ||
+              solo.tierNameShort ||
+              ""
+            ).toString();
+            const division =
+              solo.division || solo.divisionName || solo.rank || "";
+            const lp = solo.leaguePoints || solo.lp || solo.league_points || 0;
+            const text = `单排: ${tier} ${division} - ${lp} LP`;
+            headerDiv.appendChild(makeBadge(text, tier));
+          } else {
+            headerDiv.appendChild(makeBadge("单排: 未上分", "unranked"));
+          }
+
+          if (flex) {
+            const tier = (
+              flex.tier ||
+              flex.tierName ||
+              flex.tierNameShort ||
+              ""
+            ).toString();
+            const division =
+              flex.division || flex.divisionName || flex.rank || "";
+            const lp = flex.leaguePoints || flex.lp || flex.league_points || 0;
+            const text = `灵活: ${tier} ${division} - ${lp} LP`;
+            headerDiv.appendChild(makeBadge(text, tier));
+          } else {
+            headerDiv.appendChild(makeBadge("灵活: 未上分", "unranked"));
+          }
+        } catch (e) {
+          console.debug("fetchAndRenderRank failed", e);
+        }
       }
 
       function displayPagination(gamesCount, container) {

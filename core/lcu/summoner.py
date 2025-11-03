@@ -199,29 +199,24 @@ def _normalize_ranked_payload(payload, endpoint_tag):
     return None
 
 
-def get_ranked_stats(token, port, summoner_id, puuid=None):
-    """
-    获取召唤师排位信息（带端点回退逻辑）。
-
-    Args:
-        token: LCU认证令牌
-        port: LCU端口
-        summoner_id: 召唤师ID
-        puuid: 可选 PUUID，用于某些端点
-
-    Returns:
-        dict: 包含 queues 列表的排位信息
-    """
-    # 逐个尝试常见端点，直到拿到有效数据
-    endpoints = [
-        (f"/lol-ranked/v1/ranked-stats/{summoner_id}", "lol-ranked/v1/ranked-stats"),
-        (f"/lol-ranked/v2/summoner/{summoner_id}", "lol-ranked/v2/summoner"),
-        (f"/lol-league/v1/entries/by-summoner/{summoner_id}", "lol-league/v1/entries/by-summoner"),
-        (f"/lol-league/v1/positions/by-summoner/{summoner_id}", "lol-league/v1/positions/by-summoner"),
-    ]
+def get_ranked_stats(token, port, summoner_id=None, puuid=None):
+    """获取召唤师排位信息（支持按 PUUID 或 summonerId 查询）。"""
+    endpoints = []
 
     if puuid:
-        endpoints.insert(1, (f"/lol-ranked/v1/ranked-stats/by-puuid/{puuid}", "lol-ranked/v1/ranked-stats/by-puuid"))
+        endpoints.append((f"/lol-ranked/v1/ranked-stats/{puuid}", "lol-ranked/v1/ranked-stats/puuid"))
+        endpoints.append((f"/lol-ranked/v1/ranked-stats/by-puuid/{puuid}", "lol-ranked/v1/ranked-stats/by-puuid-legacy"))
+
+    if summoner_id:
+        endpoints.extend([
+            (f"/lol-ranked/v1/ranked-stats/{summoner_id}", "lol-ranked/v1/ranked-stats/by-id"),
+            (f"/lol-ranked/v2/summoner/{summoner_id}", "lol-ranked/v2/summoner"),
+            (f"/lol-league/v1/entries/by-summoner/{summoner_id}", "lol-league/v1/entries/by-summoner"),
+            (f"/lol-league/v1/positions/by-summoner/{summoner_id}", "lol-league/v1/positions/by-summoner"),
+        ])
+
+    if not endpoints:
+        return {}
 
     for endpoint, tag in endpoints:
         payload = make_request("GET", endpoint, token, port)

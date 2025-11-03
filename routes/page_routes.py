@@ -54,8 +54,14 @@ def summoner_detail(summoner_name):
                 summoner_level = summoner_data.get('summonerLevel', 0)
                 # 获取段位信息
                 summoner_id = summoner_data.get('id')
-                if summoner_id:
-                    ranked_stats = lcu.get_ranked_stats(token, port, summoner_id, puuid=summoner_data.get('puuid'))
+                ranked_stats = {}
+                if summoner_id or summoner_data.get('puuid'):
+                    ranked_stats = lcu.get_ranked_stats(
+                        token,
+                        port,
+                        summoner_id=summoner_id,
+                        puuid=summoner_data.get('puuid')
+                    )
                     if ranked_stats and isinstance(ranked_stats, dict):
                         queues = ranked_stats.get('queues', [])
                         for queue in queues:
@@ -77,8 +83,14 @@ def summoner_detail(summoner_name):
                 puuid = s_data.get('puuid')
                 # 获取段位信息
                 summoner_id = s_data.get('id')
-                if summoner_id:
-                    ranked_stats = lcu.get_ranked_stats(token, port, summoner_id, puuid=s_data.get('puuid'))
+                ranked_stats = {}
+                if summoner_id or s_data.get('puuid'):
+                    ranked_stats = lcu.get_ranked_stats(
+                        token,
+                        port,
+                        summoner_id=summoner_id,
+                        puuid=s_data.get('puuid')
+                    )
                     if ranked_stats and isinstance(ranked_stats, dict):
                         queues = ranked_stats.get('queues', [])
                         for queue in queues:
@@ -174,3 +186,45 @@ def live_game():
         HTML: 实时游戏详情页面
     """
     return render_template('live_game.html')
+
+
+
+@page_bp.route('/get_summoner_rank', methods=['GET'])
+def page_get_summoner_rank():
+    """兼容性路由：在页面蓝图下也提供 /get_summoner_rank，以防数据蓝图不可达。
+
+    返回与 data_routes.get_summoner_rank 相同的 JSON 结构。
+    """
+    from flask import request, jsonify
+    if not app_state.is_lcu_connected():
+        return jsonify({"success": False, "message": "未连接到客户端"}), 400
+
+    summoner_name = request.args.get('name')
+    puuid = request.args.get('puuid')
+    token = app_state.lcu_credentials["auth_token"]
+    port = app_state.lcu_credentials["app_port"]
+
+    summoner_data = None
+    if puuid:
+        summoner_data = lcu.get_summoner_by_puuid(token, port, puuid)
+    else:
+        summoner_data = lcu.get_summoner_by_name(token, port, summoner_name)
+
+    if not summoner_data:
+        return jsonify({"success": False, "message": "无法获取召唤师信息"}), 404
+
+    profile_icon_id = summoner_data.get('profileIconId', 29)
+    summoner_level = summoner_data.get('summonerLevel', 0)
+    summoner_id = summoner_data.get('id')
+    puuid = summoner_data.get('puuid') or puuid
+
+    ranked = {}
+    if summoner_id or puuid:
+        ranked = lcu.get_ranked_stats(token, port, summoner_id=summoner_id, puuid=puuid) or {}
+
+    return jsonify({
+        "success": True,
+        "profile_icon_id": profile_icon_id,
+        "summoner_level": summoner_level,
+        "ranked": ranked,
+    })
