@@ -43,65 +43,118 @@ def summoner_detail(summoner_name):
     ranked_flex_tier = ""  # 灵活组排段位
     ranked_flex_rank = ""  # 灵活组排小段位
     ranked_flex_lp = 0  # 灵活组排胜点
-    
+    ranked_solo_summary = None
+    ranked_flex_summary = None
+
+    SOLO_QUEUE_TYPES = {
+        "RANKED_SOLO_5X5",
+        "RANKED_SOLO",
+        "SOLO",
+    }
+    FLEX_QUEUE_TYPES = {
+        "RANKED_FLEX_SR",
+        "RANKED_FLEX",
+        "FLEX",
+        "RANKED_FLEX_5X5",
+    }
+
+    def _safe_int(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _summarize_queue(queue: dict | None, label: str):
+        if not isinstance(queue, dict):
+            return None
+
+        tier_raw = queue.get('tier') or queue.get('tierName') or queue.get('tierNameShort') or ""
+        tier = str(tier_raw).strip().upper()
+        if tier in {"NA", "NONE", "UNRANKED", "N/A"}:
+            tier = ""
+
+        division_raw = queue.get('division') or queue.get('divisionName') or queue.get('rank') or ""
+        division = str(division_raw).strip().upper()
+        if division in {"NA", "NONE", "UNRANKED", "UNSPECIFIED", "N/A"}:
+            division = ""
+
+        lp_candidates = [
+            queue.get('leaguePoints'),
+            queue.get('leaguePointsEarned'),
+            queue.get('lp'),
+            queue.get('league_points'),
+        ]
+        lp_val = next((val for val in lp_candidates if val is not None), 0)
+        lp = _safe_int(lp_val)
+        if lp is None:
+            lp = 0
+
+        wins = _safe_int(queue.get('wins'))
+        losses = _safe_int(queue.get('losses'))
+
+        queue_type = queue.get('queueType') or queue.get('queue') or queue.get('type') or ""
+
+        return {
+            "label": label,
+            "tier": tier,
+            "division": division,
+            "lp": lp,
+            "wins": wins,
+            "losses": losses,
+            "queueType": str(queue_type).upper(),
+            "leagueName": queue.get('leagueName') or queue.get('leagueId') or "",
+        }
+
     if app_state.is_lcu_connected():
         token = app_state.lcu_credentials["auth_token"]
         port = app_state.lcu_credentials["app_port"]
+
+        summoner_data = None
         if puuid:
             summoner_data = lcu.get_summoner_by_puuid(token, port, puuid)
-            if summoner_data:
-                profile_icon_id = summoner_data.get('profileIconId', 29)
-                summoner_level = summoner_data.get('summonerLevel', 0)
-                # 获取段位信息
-                summoner_id = summoner_data.get('id')
-                ranked_stats = {}
-                if summoner_id or summoner_data.get('puuid'):
-                    ranked_stats = lcu.get_ranked_stats(
-                        token,
-                        port,
-                        summoner_id=summoner_id,
-                        puuid=summoner_data.get('puuid')
-                    )
-                    if ranked_stats and isinstance(ranked_stats, dict):
-                        queues = ranked_stats.get('queues', [])
-                        for queue in queues:
-                            if queue.get('queueType') == 'RANKED_SOLO_5x5':
-                                ranked_solo_tier = queue.get('tier', '')
-                                ranked_solo_rank = queue.get('division', '')
-                                ranked_solo_lp = queue.get('leaguePoints', 0)
-                            elif queue.get('queueType') == 'RANKED_FLEX_SR':
-                                ranked_flex_tier = queue.get('tier', '')
-                                ranked_flex_rank = queue.get('division', '')
-                                ranked_flex_lp = queue.get('leaguePoints', 0)
         else:
-            # 如果没有 puuid，尝试通过名称获取（使用解码后的名称）
-            s_data = lcu.get_summoner_by_name(token, port, decoded_summoner_name)
-            if s_data:
-                profile_icon_id = s_data.get('profileIconId', 29)
-                summoner_level = s_data.get('summonerLevel', 0)
-                # 同时获取 puuid 用于后续查询
-                puuid = s_data.get('puuid')
-                # 获取段位信息
-                summoner_id = s_data.get('id')
-                ranked_stats = {}
-                if summoner_id or s_data.get('puuid'):
-                    ranked_stats = lcu.get_ranked_stats(
-                        token,
-                        port,
-                        summoner_id=summoner_id,
-                        puuid=s_data.get('puuid')
-                    )
-                    if ranked_stats and isinstance(ranked_stats, dict):
-                        queues = ranked_stats.get('queues', [])
-                        for queue in queues:
-                            if queue.get('queueType') == 'RANKED_SOLO_5x5':
-                                ranked_solo_tier = queue.get('tier', '')
-                                ranked_solo_rank = queue.get('division', '')
-                                ranked_solo_lp = queue.get('leaguePoints', 0)
-                            elif queue.get('queueType') == 'RANKED_FLEX_SR':
-                                ranked_flex_tier = queue.get('tier', '')
-                                ranked_flex_rank = queue.get('division', '')
-                                ranked_flex_lp = queue.get('leaguePoints', 0)
+            summoner_data = lcu.get_summoner_by_name(token, port, decoded_summoner_name)
+
+        if summoner_data:
+            profile_icon_id = summoner_data.get('profileIconId', 29)
+            summoner_level = summoner_data.get('summonerLevel', 0)
+            if not puuid:
+                puuid = summoner_data.get('puuid') or puuid
+
+            summoner_id = summoner_data.get('id') or summoner_data.get('summonerId')
+            ranked_stats = {}
+            if summoner_id or puuid:
+                ranked_stats = lcu.get_ranked_stats(
+                    token,
+                    port,
+                    summoner_id=summoner_id,
+                    puuid=puuid
+                ) or {}
+
+            if isinstance(ranked_stats, dict):
+                queues = ranked_stats.get('queues', [])
+                if isinstance(queues, list):
+                    solo_queue = None
+                    flex_queue = None
+                    for queue in queues:
+                        queue_type = str(queue.get('queueType') or queue.get('queue') or queue.get('type') or "").upper()
+                        if not solo_queue and queue_type in SOLO_QUEUE_TYPES:
+                            solo_queue = queue
+                        elif not flex_queue and queue_type in FLEX_QUEUE_TYPES:
+                            flex_queue = queue
+
+                    ranked_solo_summary = _summarize_queue(solo_queue, "单双排 (Solo/Duo)")
+                    ranked_flex_summary = _summarize_queue(flex_queue, "灵活排位 (Flex)")
+
+                    if ranked_solo_summary:
+                        ranked_solo_tier = ranked_solo_summary.get('tier', '')
+                        ranked_solo_rank = ranked_solo_summary.get('division', '')
+                        ranked_solo_lp = ranked_solo_summary.get('lp', 0)
+
+                    if ranked_flex_summary:
+                        ranked_flex_tier = ranked_flex_summary.get('tier', '')
+                        ranked_flex_rank = ranked_flex_summary.get('division', '')
+                        ranked_flex_lp = ranked_flex_summary.get('lp', 0)
     
     # pass champion map so templates can resolve championId -> champion key for ddragon
     return render_template(
@@ -116,7 +169,9 @@ def summoner_detail(summoner_name):
         ranked_solo_lp=ranked_solo_lp,
         ranked_flex_tier=ranked_flex_tier,
         ranked_flex_rank=ranked_flex_rank,
-        ranked_flex_lp=ranked_flex_lp
+        ranked_flex_lp=ranked_flex_lp,
+        ranked_solo_summary=ranked_solo_summary,
+        ranked_flex_summary=ranked_flex_summary
     )
 
 
