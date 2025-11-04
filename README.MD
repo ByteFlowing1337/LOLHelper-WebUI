@@ -1,9 +1,11 @@
 <!-- Badges -->
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE) [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/) [![CI](https://github.com/ByteFlowing1337/LOL/actions/workflows/ci.yml/badge.svg)](https://github.com/ByteFlowing1337/LOL/actions)
 
-# LOLHelper WebUI
+# 🎮 LCU-UI
 
-
+> **League Client Update - User Interface**  
+> 英雄联盟客户端辅助工具 - 现代化 Web 界面
 
 中文 / Chinese
 
@@ -30,12 +32,12 @@ A lightweight Web UI for League of Legends helper features:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
+npm install
+npm run build
 uv run app.py
 ```
 
 Then open the printed address (e.g. http://127.0.0.1:5000) in your browser.
-
-
 
 ## CI / 自动化示例 CI example
 
@@ -68,6 +70,5 @@ A minimal GitHub Actions workflow is included at `.github/workflows/ci.yml`. It 
 ## License
 
 MIT — see `LICENSE` for release notes.
-
 
 If you'd like a localized Chinese-only README or a longer English README with screenshots and demos, I can expand this further.

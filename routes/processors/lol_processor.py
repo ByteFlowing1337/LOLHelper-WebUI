@@ -166,8 +166,8 @@ def process_single_lol_game(game, puuid=None):
     game_length = game.get('gameDuration', 0)
     summary['duration'] = int(game_length) if game_length else 0
     
-    # Match ID
-    match_id = game.get('matchId', '')
+    # Match ID (fallback to gameId if matchId missing)
+    match_id = game.get('matchId') or game.get('gameId') or ''
     summary['match_id'] = match_id
     
     return summary

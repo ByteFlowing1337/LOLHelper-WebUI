@@ -14,3 +14,7 @@ env/
 *.whl
 /runs
 *.py.bak
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.log

@@ -1,5 +1,5 @@
 """
-LOLHelper WebUI 主入口文件
+LCU-UI 主入口文件
 模块化版本
 """
 from flask import Flask
@@ -8,7 +8,7 @@ import threading
 import webbrowser
 
 from config import SECRET_KEY, HOST, PORT
-from routes import page_bp, data_bp
+from routes import page_bp, data_bp, react_bp, react_api_bp
 from websocket import register_socket_events
 from utils import get_local_ip
 
@@ -25,8 +25,9 @@ def create_app():
     app.config['SECRET_KEY'] = SECRET_KEY
     
     # 注册蓝图
-    app.register_blueprint(page_bp)  # 页面渲染路由
-    app.register_blueprint(data_bp)  # 数据 API 路由
+   ##    app.register_blueprint(data_bp)       # 旧版数据 API
+    app.register_blueprint(react_api_bp)  # React 前端 REST API
+    app.register_blueprint(react_bp)      # React SPA 静态资源路由
     
  
     
@@ -75,7 +76,7 @@ def main():
     
     # 输出启动信息
     print("=" * 60)
-    print("🎮 LOLHelper WebUI 已启动！")
+    print("🎮 LCU-UI 已启动！")
     print("=" * 60) 
     print(f"📍 本机访问地址: http://127.0.0.1:{PORT}")
     print(f"🌐 局域网访问地址: {server_address}")

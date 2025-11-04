@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lolhelper-webui"
+name = "lcu-ui"
 version = "0.1.0"
-description = "LOLHelper WebUI - lightweight server for League helper features"
+description = "LCU-UI - lightweight server for League helper features"
 readme = "RELEASE_README.txt"
 requires-python = ">=3.10"
 license = { text = "MIT" }
