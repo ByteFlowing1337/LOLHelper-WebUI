@@ -4,7 +4,6 @@
 """
 
 # Flask 配置
-SECRET_KEY = 'a_very_secret_key'
 HOST = '0.0.0.0'
 PORT = 5000
 

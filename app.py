@@ -7,7 +7,7 @@ from flask_socketio import SocketIO
 import threading
 import webbrowser
 
-from config import SECRET_KEY, HOST, PORT
+from config import HOST, PORT
 from routes import page_bp, data_bp
 from websocket import register_socket_events
 from utils import get_local_ip
@@ -22,7 +22,6 @@ def create_app():
     """
     # 初始化Flask应用
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = SECRET_KEY
     
     # 注册蓝图
     app.register_blueprint(page_bp)  # 页面渲染路由
@@ -46,7 +45,7 @@ def create_app():
     return app, socketio
 
 
-def open_browser_delayed(url, delay=0.5):
+def open_browser_delayed(url):
     """
     延迟打开浏览器
     
@@ -58,7 +57,7 @@ def open_browser_delayed(url, delay=0.5):
         print(f"尝试在浏览器中打开: {url}")
         webbrowser.open(url)
     
-    threading.Timer(delay, _open).start()
+    threading.Timer(0,_open).start()
 
 
 def main():
@@ -73,15 +72,10 @@ def main():
     # 延迟打开浏览器
     open_browser_delayed(server_address)
     
-    # 输出启动信息
-    print("=" * 60)
-    print("🎮 LOLHelper WebUI 已启动！")
-    print("=" * 60) 
-    print(f"📍 本机访问地址: http://127.0.0.1:{PORT}")
-    print(f"🌐 局域网访问地址: {server_address}")
-    print(f"💡 提示: 请确保防火墙已允许端口 {PORT}")
-    print("=" * 60)
-    
+    # 输出启动信息  
+    print("Lcu UI 已启动！")
+    print(f"本机访问地址: http://127.0.0.1:{PORT}")
+    print(f"局域网访问地址: {server_address}")
     # 启动服务器
     socketio.run(app, host=HOST, port=PORT)
 

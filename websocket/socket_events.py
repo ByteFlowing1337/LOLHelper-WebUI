@@ -6,15 +6,6 @@ from flask_socketio import emit
 from config import app_state
 from services import auto_accept_task, auto_analyze_task
 from core import lcu
-try:
-    # vision-related services were removed; provide no-op placeholders to keep imports safe
-    from services.vision_service import vision_detection_task, capture_screenshot_task  # type: ignore
-except Exception:
-    def vision_detection_task(*args, **kwargs):
-        print("vision_detection_task is not available (feature removed)")
-
-    def capture_screenshot_task(*args, **kwargs):
-        print("capture_screenshot_task is not available (feature removed)")
 
 
 class SocketIOMessageProxy:

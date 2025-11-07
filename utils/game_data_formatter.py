@@ -215,7 +215,7 @@ def format_game_data(all_game_data):
     Returns:
         dict: 包含格式化后的玩家列表和游戏信息
     """
-    # 防御性编程：确保所有字段都不为 None
+    # Defensive programming：确保所有字段都不为 None
     active_player = all_game_data.get('activePlayer')
     if active_player is None or not isinstance(active_player, dict):
         active_player = {}
@@ -295,13 +295,13 @@ def format_game_data(all_game_data):
     
     # 提取游戏信息
     game_info = {
-        'mode': game_data.get('gameMode', 'CLASSIC'),
+        'mode': game_data.get('gameMode', 'Unknown'),
         'time': round(game_data.get('gameTime', 0), 1),
         'mapName': game_data.get('mapName', ''),
-        'mapNumber': game_data.get('mapNumber', 11)
+        'mapNumber': game_data.get('mapNumber', 'Unknown')
     }
     
-    # 提取事件信息（最近击杀等）- 防御性处理
+    # 提取事件信息（最近击杀等）
     events_data = all_game_data.get('events')
     if events_data is None or not isinstance(events_data, dict):
         events_data = {}
@@ -320,7 +320,7 @@ def format_game_data(all_game_data):
                 'assisters': event.get('Assisters') or [],
                 'time': round(event.get('EventTime', 0), 1)
             })
-            if len(recent_kills) >= 5:  # 只保留最近5次击杀
+            if len(recent_kills) >= 10:  # 只保留最近10次击杀
                 break
     
     return {
@@ -333,44 +333,7 @@ def format_game_data(all_game_data):
     }
 
 
-def get_item_icon_url(item_id, version='14.13.1'):
-    """
-    获取物品图标URL
-    
-    Args:
-        item_id: 物品ID
-        version: 游戏版本号
-    
-    Returns:
-        str: 物品图标URL
-    """
-    return f"https://ddragon.leagueoflegends.com/cdn/{version}/img/item/{item_id}.png"
 
 
-def get_champion_icon_url(champion_name, version='14.13.1'):
-    """
-    获取英雄图标URL
-    
-    Args:
-        champion_name: 英雄名称
-        version: 游戏版本号
-    
-    Returns:
-        str: 英雄图标URL
-    """
-    return f"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champion_name}.png"
 
 
-def format_time(seconds):
-    """
-    格式化游戏时间
-    
-    Args:
-        seconds: 秒数
-    
-    Returns:
-        str: 格式化后的时间 (MM:SS)
-    """
-    minutes = int(seconds // 60)
-    secs = int(seconds % 60)
-    return f"{minutes:02d}:{secs:02d}"
