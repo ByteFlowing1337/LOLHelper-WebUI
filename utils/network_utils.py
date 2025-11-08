@@ -11,17 +11,48 @@ def get_local_ip():
     Returns:
         str: IP地址，失败时返回 '127.0.0.1'
     """
+    def _is_private(ip: str) -> bool:
+        # Private IPv4 ranges
+        return ip.startswith('10.') or ip.startswith('192.168.') or (
+            ip.startswith('172.') and 16 <= int(ip.split('.')[1]) <= 31
+        )
+
+    s = None
     try:
-        # 创建一个UDP socket
+        # First attempt: UDP trick to let OS pick the outbound interface
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # 尝试连接一个外部地址（例如 Google DNS），但数据不会真正发送
-        # 这一步是为了让操作系统选择一个合适的网络接口，从而获取到对应的内网IP
-        s.connect(('10.255.255.255', 1))
-        # 获取socket连接的本机地址
+        # Use a well-known public IP (doesn't send packets) to choose interface
+        s.connect(('8.8.8.8', 80))
         ip_address = s.getsockname()[0]
+        # If the chosen IP is a private LAN address, return it
+        if _is_private(ip_address):
+            return ip_address
     except Exception:
-        # 如果获取失败，则使用本地回环地址
-        ip_address = '127.0.0.1'
+        pass
     finally:
-        s.close()
-    return ip_address
+        if s:
+            try:
+                s.close()
+            except Exception:
+                pass
+
+    # Second attempt: inspect host name addresses and pick a private one
+    try:
+        hostname = socket.gethostname()
+        for res in socket.getaddrinfo(hostname, None, family=socket.AF_INET):
+            candidate = str(res[4][0])
+            if candidate and not candidate.startswith('127.') and _is_private(candidate):
+                return candidate
+    except Exception:
+        pass
+
+    # Fallback: try gethostbyname (may return an IP on some systems)
+    try:
+        candidate = socket.gethostbyname(socket.gethostname())
+        if candidate and not candidate.startswith('127.') and _is_private(candidate):
+            return candidate
+    except Exception:
+        pass
+
+    # Final fallback: loopback
+    return '127.0.0.1'

@@ -7,7 +7,7 @@ from flask_socketio import SocketIO
 import threading
 import webbrowser
 
-from config import HOST, PORT
+from config import HOST, PORT, PUBLIC_HOST
 from routes import page_bp, data_bp
 from websocket import register_socket_events
 from utils import get_local_ip
@@ -45,19 +45,36 @@ def create_app():
     return app, socketio
 
 
-def open_browser_delayed(url):
+def open_browser_when_ready(url, host='127.0.0.1', port=5000, timeout=10, interval=0.2):
     """
-    延迟打开浏览器
-    
+    在服务器端口可连接后打开浏览器（在单独线程中运行）。
+
+    这比固定延时更稳健：它会轮询目标端口直到可连接或超时，避免浏览器在服务器尚未就绪时打开导致需要手动刷新。
+
     Args:
         url: 要打开的URL
-        delay: 延迟秒数
+        host: 主机名或IP（用于端口检测）
+        port: 端口号
+        timeout: 最长等待秒数
+        interval: 重试间隔秒数
     """
-    def _open():
-        print(f"尝试在浏览器中打开: {url}")
+    def _wait_and_open():
+        import socket, time
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                with socket.create_connection((host, int(port)), timeout=1):
+                    print(f"检测到服务器 {host}:{port} 可连接，准备打开浏览器: {url}")
+                    webbrowser.open(url)
+                    return
+            except Exception:
+                time.sleep(interval)
+        # 超时了，仍然尝试打开一次（避免完全不打开的情况）
+        print(f"等待 {host}:{port} 超时 ({timeout}s)，将尝试直接打开浏览器: {url}")
         webbrowser.open(url)
-    
-    threading.Timer(0,_open).start()
+
+    t = threading.Thread(target=_wait_and_open, daemon=True)
+    t.start()
 
 
 def main():
@@ -65,14 +82,16 @@ def main():
     # 创建应用
     app, socketio = create_app()
     
-    # 获取本地IP
-    local_ip = get_local_ip()
-    server_address = f'http://{local_ip}:{PORT}'
-    
-    # 延迟打开浏览器
-    open_browser_delayed(server_address)
-    
-    # 输出启动信息  
+    # 获取本地IP（优先使用配置中的 PUBLIC_HOST）
+    detected_ip = get_local_ip()
+    display_host = PUBLIC_HOST or (detected_ip if detected_ip else '127.0.0.1')
+    server_address = f'http://{display_host}:{PORT}'
+
+    # 在服务器可用后打开浏览器（更稳健，避免需要手动刷新）
+    # 如果你希望强制使用回环或局域网地址，可在 config.py 中设置 PUBLIC_HOST
+    open_browser_when_ready(server_address, host=display_host, port=PORT, timeout=10)
+
+    # 输出启动信息
     print("Lcu UI 已启动！")
     print(f"本机访问地址: http://127.0.0.1:{PORT}")
     print(f"局域网访问地址: {server_address}")

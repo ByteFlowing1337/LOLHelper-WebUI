@@ -16,7 +16,7 @@ def auto_accept_task(socketio):
     try:
         while app_state.auto_accept_enabled:
             if not app_state.is_lcu_connected():
-                time.sleep(2)
+                time.sleep(0.5)
                 continue
 
             try:

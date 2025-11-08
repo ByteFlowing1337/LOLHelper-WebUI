@@ -6,6 +6,9 @@
 # Flask 配置
 HOST = '0.0.0.0'
 PORT = 5000
+# 可选：用于在启动时在浏览器中打开的主机地址（覆盖自动检测）
+# 如果为 None，则使用自动检测到的局域网 IP 或回环地址
+PUBLIC_HOST = None
 
 # 全局状态变量
 class AppState:

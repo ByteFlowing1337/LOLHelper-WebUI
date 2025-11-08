@@ -303,14 +303,8 @@ def get_match_by_id(token, port, match_id):
     Returns:
         dict: 对局完整数据，失败返回None
     """
-    # 🚀 性能优化：根据日志统计，将最常用的端点放在第一位
-    # 经验表明 /lol-match-history/v1/games/{match_id} 是最常成功的端点
     candidates = [
-        f"/lol-match-history/v1/games/{match_id}",  # ✅ 最常用，优先尝试
-        f"/lol-match-history/v1/matches/{match_id}",
-        f"/lol-match-history/v1/products/lol/matches/{match_id}",
-        f"/lol-match-history/v1/match/{match_id}",
-        f"/match/v1/matches/{match_id}",
+        f"/lol-match-history/v1/games/{match_id}", 
     ]
 
     for ep in candidates:
