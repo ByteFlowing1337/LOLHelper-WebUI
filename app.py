@@ -63,7 +63,8 @@ def open_browser_when_ready(url, host='127.0.0.1', port=5000, timeout=10, interv
         interval: 重试间隔秒数
     """
     def _wait_and_open():
-        import socket, time
+        import socket
+        import time
         deadline = time.time() + timeout
         while time.time() < deadline:
             try:

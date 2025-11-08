@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 from functools import lru_cache
 
 # --- LCU 根路径查找函数 ---
@@ -97,7 +98,7 @@ def _get_champion_map():
     return CHAMPION_MAP
 
 # 重写CHAMPION_MAP为属性，实现延迟加载
-import sys
+
 current_module = sys.modules[__name__]
 setattr(current_module, 'CHAMPION_MAP', property(lambda self: _get_champion_map()))
 
