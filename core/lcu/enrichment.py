@@ -240,11 +240,23 @@ def enrich_game_with_augments(game):
                     icon_url = get_augment_icon_url(mapped_id)
                     stats[icon_key] = icon_url
                     
-                    # 中文名称和描述
-                    aug_info = get_augment_info(mapped_id)
-                    if aug_info:
-                        stats[name_key] = aug_info.get('name', '')
-                        stats[desc_key] = aug_info.get('desc', '')
+                    # 中文名称和描述：从全表中根据 mapped_id 查找具体 augment 的信息
+                    aug_info_map = get_augment_info()
+                    # 可能的返回值是以 id 为键的字典，尝试用 int 或 str key 获取具体项
+                    aug = {}
+                    if isinstance(aug_info_map, dict):
+                        # 安全地根据 mapped_id 查找项，兼容 int 或 str 类型的字典键
+                        for k, v in aug_info_map.items():
+                            try:
+                                if k == mapped_id or str(k) == str(mapped_id):
+                                    aug = v or {}
+                                    break
+                            except Exception:
+                                continue
+
+                    if aug and isinstance(aug, dict):
+                        stats[name_key] = aug.get('name', '') or aug.get('title', '')
+                        stats[desc_key] = aug.get('desc', '') or aug.get('description', '')
                     else:
                         stats[name_key] = None
                         stats[desc_key] = None
