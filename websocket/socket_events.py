@@ -43,6 +43,13 @@ def register_socket_events(socketio):
     def handle_disconnect():
         """客户端断开连接事件"""
         print('浏览器客户端已断开连接')
+        # 当检测到任一客户端断开时，通知其他已连接的客户端关闭页面。
+        # 这会触发前端的 `server_shutdown` 处理器（尝试关闭窗口或显示提示）。
+        try:
+            socketio.emit('server_shutdown', {'reason': 'client_disconnect'})
+            print('已向所有已连接客户端广播 server_shutdown')
+        except Exception as e:
+            print(f'广播 server_shutdown 失败: {e}')
         # 不重置功能开关，但清理线程状态标记
         # 这样如果用户刷新页面，重新连接后可以重新启动功能
     
