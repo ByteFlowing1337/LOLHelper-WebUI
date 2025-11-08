@@ -4,7 +4,7 @@ API路由模块
 """
 from flask import Blueprint, render_template, jsonify, request
 from config import app_state
-from constants import CHAMPION_MAP
+import constants
 from core import lcu
 from core.lcu.enrichment import enrich_game_with_augments
 from utils.game_data_formatter import format_game_data
@@ -173,7 +173,7 @@ def summoner_detail(summoner_name):
     return render_template(
         'summoner_detail.html', 
         summoner_name=decoded_summoner_name,
-        champion_map=CHAMPION_MAP, 
+        champion_map=constants._get_champion_map(), 
         puuid=puuid,
         profile_icon_id=profile_icon_id,
         summoner_level=summoner_level,
@@ -243,7 +243,7 @@ def match_detail_page(summoner_name, game_index):
         summoner_name=summoner_name, 
         game_index=game_index, 
         match_id=match_id,
-        champion_map=CHAMPION_MAP
+        champion_map=constants._get_champion_map()
     )
 
 
@@ -904,7 +904,7 @@ def _process_single_lol_game(game, puuid=None):
     champion_en = "Unknown"
     if isinstance(participant, dict):
         champion_id = participant.get('championId', 0)
-        champion_en = CHAMPION_MAP.get(champion_id, f"Champion{champion_id}")
+        champion_en = constants._get_champion_map().get(champion_id, f"Champion{champion_id}")
     summary['champion_id'] = champion_id
     summary['champion_en'] = champion_en
     

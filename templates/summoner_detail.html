@@ -1423,10 +1423,28 @@
           }
 
           const resp = await fetch(url);
-          if (!resp.ok) return;
+          if (!resp.ok) {
+            // Show a friendly message when the backend cannot fetch rank (commonly: LCU not connected)
+            rankContainer.innerHTML = "";
+            const warn = document.createElement("div");
+            warn.className = "alert alert-warning";
+            warn.textContent =
+              "无法加载头像/段位信息（未连接到本地客户端）。如果你希望看到完整信息，请确保 League Client 已打开并已登录。";
+            rankContainer.appendChild(warn);
+            return;
+          }
 
           const data = await resp.json();
-          if (!data || !data.success) return;
+          if (!data || !data.success) {
+            // Backend returned a structured failure (e.g. not connected)
+            rankContainer.innerHTML = "";
+            const warn2 = document.createElement("div");
+            warn2.className = "alert alert-warning";
+            warn2.textContent =
+              data && data.message ? data.message : "无法获取头像/段位信息。";
+            rankContainer.appendChild(warn2);
+            return;
+          }
 
           const avatar = document.querySelector(".header-card .summoner-icon");
           if (avatar && data.profile_icon_id) {

@@ -4,7 +4,7 @@
 """
 from flask import Blueprint, render_template, request
 from config import app_state
-from constants import CHAMPION_MAP
+import constants
 from core import lcu
 import urllib.parse
 
@@ -160,7 +160,7 @@ def summoner_detail(summoner_name):
     return render_template(
         'summoner_detail.html', 
         summoner_name=decoded_summoner_name,
-        champion_map=CHAMPION_MAP, 
+        champion_map=constants._get_champion_map(), 
         puuid=puuid,
         profile_icon_id=profile_icon_id,
         summoner_level=summoner_level,
@@ -228,7 +228,7 @@ def match_detail_page(summoner_name, game_index):
         summoner_name=summoner_name, 
         game_index=game_index, 
         match_id=match_id,
-        champion_map=CHAMPION_MAP
+        champion_map=constants._get_champion_map()
     )
 
 

@@ -2,7 +2,7 @@
 游戏数据处理器模块
 """
 from datetime import datetime
-from constants import CHAMPION_MAP
+import constants
 
 
 def process_lol_match_history(history, puuid=None):
@@ -88,7 +88,7 @@ def process_single_lol_game(game, puuid=None):
     champion_en = "Unknown"
     if isinstance(participant, dict):
         champion_id = participant.get('championId', 0)
-        champion_en = CHAMPION_MAP.get(champion_id, f"Champion{champion_id}")
+        champion_en = constants._get_champion_map().get(champion_id, f"Champion{champion_id}")
     summary['champion_id'] = champion_id
     summary['champion_en'] = champion_en
     

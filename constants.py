@@ -99,8 +99,8 @@ def _get_champion_map():
 
 # 重写CHAMPION_MAP为属性，实现延迟加载
 
-current_module = sys.modules[__name__]
-setattr(current_module, 'CHAMPION_MAP', property(lambda self: _get_champion_map()))
+# Note: do not override module attribute with a property object.
+# Keep CHAMPION_MAP as a module-level variable (None until loaded)
 
 
 # 海克斯天赋 (ARAM Augments) 映射 - 使用延迟加载优化性能
