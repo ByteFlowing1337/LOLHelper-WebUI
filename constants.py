@@ -1,6 +1,5 @@
 import os
 import json
-import sys
 from functools import lru_cache
 
 # --- LCU 根路径查找函数 ---

@@ -1012,6 +1012,9 @@
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         <span id="error-text"></span>
       </div>
+      <div id="external-champion-stats" class="mt-3">
+        <!-- 外部英雄数据 (OP.GG 占位) 将在加载后填充 -->
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -1389,6 +1392,13 @@
 
           // 显示游戏列表
           displayGames(data.games, gamesContainer);
+
+          // 异步加载外部OP.GG占位数据（最常用的前3个英雄）
+          try {
+            loadExternalChampionStats(data.games);
+          } catch (extErr) {
+            console.debug("external champion stats load failed", extErr);
+          }
 
           // 显示分页控件
           displayPagination(data.games.length, paginationContainer);
@@ -1907,6 +1917,77 @@
             `;
           })
           .join("");
+      }
+
+      // External champion stats placeholder integration
+      function loadExternalChampionStats(games) {
+        if (!Array.isArray(games) || games.length === 0) return;
+        // Count usage by champion_en
+        const counts = {};
+        for (const g of games) {
+          const key = (g.champion_en || "").trim();
+          if (!key) continue;
+          counts[key] = (counts[key] || 0) + 1;
+        }
+        const sorted = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([k]) => k);
+        if (sorted.length === 0) return;
+
+        const host = window.location.origin;
+        const container = document.getElementById("external-champion-stats");
+        if (!container) return;
+        container.innerHTML =
+          '<div class="text-muted small">加载 OP.GG 英雄数据...</div>';
+
+        Promise.all(
+          sorted.map((champ) =>
+            fetch(
+              `/external/champion_stats?champion=${encodeURIComponent(champ)}`
+            )
+              .then((r) => r.json())
+              .catch(() => ({ success: false, champion: champ }))
+          )
+        ).then((results) => {
+          const rows = results.map((res) => {
+            if (!res || !res.success || !res.data) {
+              return `<div class="ext-champ-row text-muted">${
+                res.champion || "未知"
+              }: 外部数据不可用</div>`;
+            }
+            const d = res.data;
+            const displayName = d.name || d.champion || "";
+            const tags = Array.isArray(d.tags) ? d.tags.join("/") : "";
+            const title = d.title ? ` ${d.title}` : "";
+            const metaInfo = tags
+              ? ` <span class="text-muted small">(${tags})</span>`
+              : "";
+            return `<div class="ext-champ-row">
+              <span class="ext-champ-name">${displayName}</span>${metaInfo}
+              <span class="ext-champ-badge" title="胜率">胜率: ${
+                d.win_rate
+              }%</span>
+              <span class="ext-champ-badge" title="选取率">选取: ${
+                d.pick_rate
+              }%</span>
+              <span class="ext-champ-badge" title="禁用率">禁用: ${
+                d.ban_rate
+              }%</span>
+              <span class="ext-champ-badge" title="强度分层">Tier: ${
+                d.tier
+              }</span>
+              ${
+                d.cached
+                  ? '<span class="ext-champ-cache" title="缓存">缓存</span>'
+                  : ""
+              }
+            </div>`;
+          });
+          container.innerHTML = `<div class="ext-champ-wrapper">${rows.join(
+            ""
+          )}</div>`;
+        });
       }
 
       async function toggleMatchDetails(index) {

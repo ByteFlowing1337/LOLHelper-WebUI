@@ -10,17 +10,15 @@ from core.lcu.enrichment import enrich_game_with_augments
 from utils.game_data_formatter import format_game_data
 import requests
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from services.opgg_service import fetch_champion_stats
 
 # Extracted processing helpers (keep route file thin)
 from services.match_service import (
     process_single_tft_game as _process_single_tft_game,
     process_lol_match_history as _process_lol_match_history,
-    process_single_lol_game as _process_single_lol_game,
-    process_match_history as _process_match_history,
-    format_game_mode as _format_game_mode,
-    calculate_time_ago as _calculate_time_ago,
 )
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 # OP.GG integration has been removed from this build.
 OPGG_AVAILABLE = False
@@ -269,6 +267,30 @@ def live_game():
 
 
 
+
+@api_bp.route('/external/champion_stats', methods=['GET'])
+def external_champion_stats():
+    """Return external champion stats (placeholder-backed).
+
+    Query params:
+      champion: champion English key (e.g., Aatrox)
+      region: optional region label (default 'global')
+    """
+    champion = (request.args.get('champion') or '').strip()
+    region = (request.args.get('region') or 'global').strip()
+    if not champion:
+        return jsonify({
+            'success': False,
+            'message': 'missing champion param'
+        }), 400
+
+    try:
+        data = fetch_champion_stats(champion, region=region)
+        if not data:
+            return jsonify({'success': False, 'message': 'no data'}), 404
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @api_bp.route('/get_history', methods=['GET'])
