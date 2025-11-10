@@ -3,28 +3,92 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lolhelper-webui"
+name = "LCU-UI"
 version = "0.1.0"
-description = "LOLHelper WebUI - lightweight server for League helper features"
-readme = "RELEASE_README.txt"
+description = "LCU-UI - lightweight server for League helper features"
+readme = "README.MD"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [ { name = "ByteFlowing1337" } ]
+authors = [
+    { name = "ByteFlow" }
+]
+keywords = ["League of Legends", "LCU", "Helper", "WebUI", "Flask"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: Microsoft :: Windows",
+    "Framework :: Flask",
+    "Topic :: Games/Entertainment",
+]
 
-# 基本依赖
+# Core runtime dependencies
 dependencies = [
-    "pynput>=1.7.0",
-    "numpy>=1.24.0",
-    "mss>=9.0.0",
-    "Flask>=3.0.0",
-    "Flask-SocketIO>=5.3.0",
-    "requests>=2.31.0",
-    "beautifulsoup4>=4.12.0",
-    "lxml>=4.9.0",
+    # Web framework
+    "Flask>=3.0.0,<4.0.0",
+    "Flask-SocketIO>=5.3.0,<6.0.0",
+    
+    # HTTP requests and networking
+    "requests>=2.31.0,<3.0.0",
+    "urllib3>=2.0.0,<3.0.0",
+    
+    # System and process utilities
+    "psutil>=5.9.0,<6.0.0",
+    "chardet>=5.0.0,<6.0.0",
+    "uv>=0.1.0"
+
 ]
 
 
 
+[project.urls]
+Homepage = "https://github.com/ByteFlowing1337/LCU-UI"
+Repository = "https://github.com/ByteFlowing1337/LCU-UI"
+Issues = "https://github.com/ByteFlowing1337/LCU-UI/issues"
+
+[project.scripts]
+lolhelper-webui = "app:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
-exclude = ["build", "dist", "runs"]
+include = ["core*", "routes*", "services*", "utils*", "websocket*"]
+exclude = ["build", "dist", "runs", "*.egg-info", "__pycache__"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.txt"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.venv
+  | build
+  | dist
+  | runs
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_gitignore = true
+known_first_party = ["core", "routes", "services", "utils", "websocket", "config", "constants"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --cov=. --cov-report=term-missing"
