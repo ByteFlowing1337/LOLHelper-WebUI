@@ -127,8 +127,8 @@ jobs:
           if [ -d "tests" ] || compgen -G "test_*.py" > /dev/null || compgen -G "*/test_*.py" > /dev/null; then
             pytest -v --cov=. --cov-report=xml --cov-report=term-missing
           else
-            echo "⚠️ No tests found - creating a basic smoke test"
-            python -c "import app; print('✅ Basic import successful')"
+            echo "No tests found - running basic smoke test"
+            python -c "import app; print('Basic import successful')"
           fi
         shell: bash
 
