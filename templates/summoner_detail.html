@@ -1288,6 +1288,15 @@
         crest.src = summary.crest;
         crest.alt = `${summary.tier || "未上分"} 徽章`;
         crest.loading = "lazy";
+
+        // Handle CDN failure gracefully - show a placeholder instead of breaking the UI
+        crest.onerror = function () {
+          // Use a simple SVG placeholder or hide the image
+          this.style.opacity = "0.3";
+          this.style.filter = "grayscale(100%)";
+          console.warn(`Failed to load rank emblem from CDN: ${this.src}`);
+        };
+
         card.appendChild(crest);
 
         const text = document.createElement("div");
@@ -1434,24 +1443,31 @@
 
           const resp = await fetch(url);
           if (!resp.ok) {
-            // Show a friendly message when the backend cannot fetch rank (commonly: LCU not connected)
+            // HTTP error - likely server issue or LCU not connected
             rankContainer.innerHTML = "";
             const warn = document.createElement("div");
             warn.className = "alert alert-warning";
-            warn.textContent =
-              "无法加载头像/段位信息（未连接到本地客户端）。如果你希望看到完整信息，请确保 League Client 已打开并已登录。";
+            warn.innerHTML = `
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <strong>无法获取段位信息</strong><br>
+              <small>请确保 League Client 已打开并已登录。如果问题持续，请刷新页面。</small>
+            `;
             rankContainer.appendChild(warn);
             return;
           }
 
           const data = await resp.json();
           if (!data || !data.success) {
-            // Backend returned a structured failure (e.g. not connected)
+            // Backend returned a structured failure
             rankContainer.innerHTML = "";
             const warn2 = document.createElement("div");
             warn2.className = "alert alert-warning";
-            warn2.textContent =
-              data && data.message ? data.message : "无法获取头像/段位信息。";
+            const message =
+              data && data.message ? data.message : "无法获取段位数据";
+            warn2.innerHTML = `
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              ${message}
+            `;
             rankContainer.appendChild(warn2);
             return;
           }
