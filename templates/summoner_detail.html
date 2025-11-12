@@ -901,7 +901,7 @@
   </head>
   <body>
     {% set rank_emblem_base =
-    'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblems'
+    'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default'
     %} {% set rank_emblems = { 'iron': rank_emblem_base ~ '/emblem-iron.png',
     'bronze': rank_emblem_base ~ '/emblem-bronze.png', 'silver':
     rank_emblem_base ~ '/emblem-silver.png', 'gold': rank_emblem_base ~
@@ -1217,6 +1217,9 @@
           return summary;
         }
 
+        // Debug: log the queue object to see what fields are available
+        console.log(`[Rank Debug] ${defaultLabel}:`, queue);
+
         const tier = sanitizeRankToken(
           queue.tier || queue.tierName || queue.tierNameShort
         );
@@ -1249,7 +1252,11 @@
         if (wins !== null) {
           summary.wins = wins;
         }
-        const losses = toInt(queue.losses);
+
+        // Try multiple possible field names for losses
+        const lossesValue =
+          queue.losses ?? queue.loss ?? queue.defeats ?? queue.lossCount;
+        const losses = toInt(lossesValue);
         if (losses !== null) {
           summary.losses = losses;
         }
@@ -1429,6 +1436,9 @@
         const rankContainer = document.getElementById("rank-panel-container");
         if (!rankContainer) return;
 
+        // Check if rank data already exists (from server-side rendering)
+        const hasExistingRankData = rankContainer.querySelector(".rank-card");
+
         try {
           let url = "";
           if (summonerPuuid && summonerPuuid.length > 0) {
@@ -1443,6 +1453,13 @@
 
           const resp = await fetch(url);
           if (!resp.ok) {
+            // If we already have rank data, keep it instead of showing error
+            if (hasExistingRankData) {
+              console.warn(
+                "Failed to refresh rank data, keeping existing data"
+              );
+              return;
+            }
             // HTTP error - likely server issue or LCU not connected
             rankContainer.innerHTML = "";
             const warn = document.createElement("div");
@@ -1458,6 +1475,13 @@
 
           const data = await resp.json();
           if (!data || !data.success) {
+            // If we already have rank data, keep it instead of showing error
+            if (hasExistingRankData) {
+              console.warn(
+                "Failed to refresh rank data, keeping existing data"
+              );
+              return;
+            }
             // Backend returned a structured failure
             rankContainer.innerHTML = "";
             const warn2 = document.createElement("div");
@@ -1541,7 +1565,18 @@
           rankContainer.appendChild(createRankCard(soloSummary, "solo"));
           rankContainer.appendChild(createRankCard(flexSummary, "flex"));
         } catch (e) {
-          console.debug("fetchAndRenderRank failed", e);
+          console.error("fetchAndRenderRank failed", e);
+          // If we already have rank data, keep it; otherwise show nothing
+          if (!rankContainer.querySelector(".rank-card")) {
+            rankContainer.innerHTML = "";
+            const warn = document.createElement("div");
+            warn.className = "alert alert-info";
+            warn.innerHTML = `
+              <i class="bi bi-info-circle-fill me-2"></i>
+              <small>段位信息加载失败，请稍后重试</small>
+            `;
+            rankContainer.appendChild(warn);
+          }
         }
       }
 

@@ -4,7 +4,7 @@ WebSocket事件处理模块
 import threading
 from flask_socketio import emit
 from config import app_state
-from services import auto_accept_task, auto_analyze_task
+from services import auto_accept_task, auto_analyze_task, auto_banpick_task
 from core import lcu
 
 
@@ -139,6 +139,72 @@ def register_socket_events(socketio):
             app_state.reset_analysis_state()
             emit('status_update', {'type': 'biz', 'message': '🛑 敌我分析功能已停止'})
             print("🛑 敌我分析功能已停止")
+    
+    @socketio.on('start_auto_banpick')
+    def handle_start_auto_banpick(data=None):
+        """启动自动Ban/Pick"""
+        with thread_lock:
+            # Require LCU connection before starting auto-banpick
+            if not app_state.is_lcu_connected():
+                emit('status_update', {'type': 'biz', 'message': '❌ 无法启动自动Ban/Pick：未连接到LCU'})
+                print("❌ 尝试启动自动Ban/Pick失败：LCU 未连接")
+                return
+            
+            # Update champion IDs if provided
+            if data:
+                if 'ban_champion_id' in data:
+                    app_state.ban_champion_id = data['ban_champion_id']
+                if 'pick_champion_id' in data:
+                    app_state.pick_champion_id = data['pick_champion_id']
+            
+            thread = app_state.auto_banpick_thread
+            if thread and not thread.is_alive():
+                app_state.auto_banpick_thread = None
+                thread = None
+            
+            if thread and thread.is_alive():
+                if app_state.auto_banpick_enabled:
+                    emit('status_update', {'type': 'biz', 'message': '⚠️ 自动Ban/Pick功能已在运行中'})
+                else:
+                    app_state.auto_banpick_enabled = True
+                    emit('status_update', {'type': 'biz', 'message': '✅ 自动Ban/Pick功能已重新开启'})
+                    print("🎯 自动Ban/Pick功能已重新激活现有线程")
+            else:
+                app_state.auto_banpick_enabled = True
+                app_state.auto_banpick_thread = threading.Thread(
+                    target=auto_banpick_task,
+                    args=(socketio,),
+                    daemon=True
+                )
+                app_state.auto_banpick_thread.start()
+                ban_msg = f"Ban: {app_state.ban_champion_id}" if app_state.ban_champion_id else "未设置"
+                pick_msg = f"Pick: {app_state.pick_champion_id}" if app_state.pick_champion_id else "未设置"
+                emit('status_update', {'type': 'biz', 'message': f'✅ 自动Ban/Pick功能已开启 ({ban_msg}, {pick_msg})'})
+                print(f"🎯 自动Ban/Pick功能已启动 - Ban: {app_state.ban_champion_id}, Pick: {app_state.pick_champion_id}")
+    
+    @socketio.on('stop_auto_banpick')
+    def handle_stop_auto_banpick():
+        """停止自动Ban/Pick"""
+        with thread_lock:
+            app_state.auto_banpick_enabled = False
+            emit('status_update', {'type': 'biz', 'message': '🛑 自动Ban/Pick功能已停止'})
+            print("🛑 自动Ban/Pick功能已停止")
+    
+    @socketio.on('configure_banpick')
+    def handle_configure_banpick(data):
+        """配置自动Ban/Pick的英雄ID"""
+        ban_id = data.get('ban_champion_id')
+        pick_id = data.get('pick_champion_id')
+        
+        if ban_id is not None:
+            app_state.ban_champion_id = ban_id
+        if pick_id is not None:
+            app_state.pick_champion_id = pick_id
+        
+        ban_msg = f"Ban: {app_state.ban_champion_id}" if app_state.ban_champion_id else "未设置"
+        pick_msg = f"Pick: {app_state.pick_champion_id}" if app_state.pick_champion_id else "未设置"
+        emit('status_update', {'type': 'biz', 'message': f'⚙️ 自动Ban/Pick配置已更新 ({ban_msg}, {pick_msg})'})
+        print(f"⚙️ 自动Ban/Pick配置更新 - Ban: {app_state.ban_champion_id}, Pick: {app_state.pick_champion_id}")
  
     
 

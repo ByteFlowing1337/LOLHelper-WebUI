@@ -20,11 +20,16 @@ class AppState:
         # 功能开关
         self.auto_accept_enabled: bool = False
         self.auto_analyze_enabled: bool = False
+        self.auto_banpick_enabled: bool = False
 
         # 分析状态
         self.teammate_analysis_done: bool = False
         self.enemy_analysis_done: bool = False
         self.current_teammates: set = set()
+        
+        # 自动 Ban/Pick 配置
+        self.ban_champion_id: int | None = None
+        self.pick_champion_id: int | None = None
 
         # LCU凭证 (auth_token may be str or None; app_port may be int or None)
         self.lcu_credentials: dict[str, Any] = {
@@ -35,6 +40,7 @@ class AppState:
         # 线程引用
         self.auto_accept_thread: 'Thread | None' = None
         self.auto_analyze_thread: 'Thread | None' = None
+        self.auto_banpick_thread: 'Thread | None' = None
     
     def reset_analysis_state(self):
         """重置分析状态"""

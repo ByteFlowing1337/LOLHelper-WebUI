@@ -46,6 +46,21 @@ export function setupSocket(handlers = {}) {
     stopAutoAnalyze() {
       socket.emit("stop_auto_analyze");
     },
+    startAutoBanPick(banChampionId, pickChampionId) {
+      socket.emit("start_auto_banpick", {
+        ban_champion_id: banChampionId,
+        pick_champion_id: pickChampionId,
+      });
+    },
+    stopAutoBanPick() {
+      socket.emit("stop_auto_banpick");
+    },
+    configureBanPick(banChampionId, pickChampionId) {
+      socket.emit("configure_banpick", {
+        ban_champion_id: banChampionId,
+        pick_champion_id: pickChampionId,
+      });
+    },
   };
 }
 
