@@ -95,6 +95,180 @@
         transform: translateX(5px);
         background: #e9ecef;
       }
+
+      /* Champion Selector Styles */
+      .champion-selector {
+        position: relative;
+        width: 100%;
+      }
+
+      .champion-selector-display {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        min-height: 38px;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+      }
+
+      .champion-selector-display:hover {
+        border-color: #86b7fe;
+      }
+
+      .champion-selector-display:focus {
+        outline: 0;
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+
+      .champion-selected {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+      }
+
+      .champion-avatar-placeholder,
+      .champion-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+
+      .champion-avatar img,
+      .champion-avatar-placeholder img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .champion-avatar-fallback {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        color: #6c757d;
+        font-size: 12px;
+      }
+
+      .champion-name {
+        color: #495057;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .dropdown-arrow {
+        color: #6c757d;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .dropdown-arrow.rotated {
+        transform: rotate(180deg);
+      }
+
+      .champion-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        display: none;
+        max-height: 300px;
+        overflow: hidden;
+      }
+
+      .champion-search {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .champion-search-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+      }
+
+      .champion-search-input:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+      }
+
+      .champion-list {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .champion-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        border-bottom: 1px solid #f8f9fa;
+      }
+
+      .champion-item:hover {
+        background-color: #f8f9fa;
+      }
+
+      .champion-item:last-child {
+        border-bottom: none;
+      }
+
+      .champion-item-name {
+        flex: 1;
+        font-size: 13px;
+        color: #495057;
+        font-weight: 500;
+      }
+
+      .champion-item-id {
+        color: #6c757d;
+        font-size: 11px;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 576px) {
+        .champion-dropdown {
+          max-height: 250px;
+        }
+
+        .champion-list {
+          max-height: 150px;
+        }
+
+        .champion-item {
+          padding: 6px 10px;
+        }
+
+        .champion-item-name {
+          font-size: 12px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -218,30 +392,12 @@
                     </h6>
                     <div class="row g-2 mb-2">
                       <div class="col-6">
-                        <label
-                          for="ban-champion-input"
-                          class="form-label small mb-1"
-                          >Ban 英雄ID</label
-                        >
-                        <input
-                          type="number"
-                          id="ban-champion-input"
-                          class="form-control form-control-sm"
-                          placeholder="例: 157"
-                        />
+                        <label class="form-label small mb-1">Ban 英雄</label>
+                        <div id="ban-champion-selector"></div>
                       </div>
                       <div class="col-6">
-                        <label
-                          for="pick-champion-input"
-                          class="form-label small mb-1"
-                          >Pick 英雄ID</label
-                        >
-                        <input
-                          type="number"
-                          id="pick-champion-input"
-                          class="form-control form-control-sm"
-                          placeholder="例: 555"
-                        />
+                        <label class="form-label small mb-1">Pick 英雄</label>
+                        <div id="pick-champion-selector"></div>
                       </div>
                     </div>
                     <button

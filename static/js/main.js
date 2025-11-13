@@ -7,8 +7,12 @@ import {
 } from "./modules/ui.js";
 import { fetchSummonerStats, fetchTFTMatches } from "./modules/api.js";
 import { setupSocket } from "./modules/socketHandler.js";
+import {
+  loadChampionData,
+  createChampionSelector,
+} from "./modules/championSelector.js";
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const detectBtn = qs("detect-btn");
   const fetchBtn = qs("fetch-btn");
   const fetchTftBtn = qs("fetch-tft-btn");
@@ -17,11 +21,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const autoAcceptBtn = qs("auto-accept-btn");
   const autoAnalyzeBtn = qs("auto-analyze-btn");
   const autoBanPickBtn = qs("auto-banpick-btn");
-  const banChampionInput = qs("ban-champion-input");
-  const pickChampionInput = qs("pick-champion-input");
   const realtimeStatus = qs("realtime-status");
   const teammateResultsDiv = qs("teammate-results-area");
   const enemyResultsDiv = qs("enemy-results-area");
+
+  // Initialize champion data and selectors
+  await loadChampionData();
+
+  const banChampionSelector = createChampionSelector(
+    "ban-champion-selector",
+    "选择要Ban的英雄..."
+  );
+  const pickChampionSelector = createChampionSelector(
+    "pick-champion-selector",
+    "选择要Pick的英雄..."
+  );
 
   // socket handlers
   const {
@@ -232,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Auto Ban/Pick Button Handler
-  if (autoBanPickBtn) {
+  if (autoBanPickBtn && banChampionSelector && pickChampionSelector) {
     autoBanPickBtn.addEventListener("click", () => {
       if (!isLCUConnected()) {
         showInlineMessage(
@@ -243,13 +257,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!autoBanPickRunning) {
-        // Get champion IDs from inputs
-        const banId = banChampionInput.value.trim()
-          ? parseInt(banChampionInput.value.trim())
-          : null;
-        const pickId = pickChampionInput.value.trim()
-          ? parseInt(pickChampionInput.value.trim())
-          : null;
+        // Get champion IDs from selectors
+        const banId = banChampionSelector.getSelectedChampionId();
+        const pickId = pickChampionSelector.getSelectedChampionId();
 
         // Start with configuration
         startAutoBanPick(banId, pickId);
@@ -276,26 +286,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Configure button to update champion IDs on the fly
-    banChampionInput.addEventListener("change", () => {
-      const banId = banChampionInput.value.trim()
-        ? parseInt(banChampionInput.value.trim())
-        : null;
-      const pickId = pickChampionInput.value.trim()
-        ? parseInt(pickChampionInput.value.trim())
-        : null;
-      configureBanPick(banId, pickId);
-    });
+    // Listen for champion selection changes to update configuration on the fly
+    document
+      .getElementById("ban-champion-selector")
+      .addEventListener("championChanged", (e) => {
+        const banId = e.detail.championId;
+        const pickId = pickChampionSelector.getSelectedChampionId();
+        configureBanPick(banId, pickId);
+      });
 
-    pickChampionInput.addEventListener("change", () => {
-      const banId = banChampionInput.value.trim()
-        ? parseInt(banChampionInput.value.trim())
-        : null;
-      const pickId = pickChampionInput.value.trim()
-        ? parseInt(pickChampionInput.value.trim())
-        : null;
-      configureBanPick(banId, pickId);
-    });
+    document
+      .getElementById("pick-champion-selector")
+      .addEventListener("championChanged", (e) => {
+        const banId = banChampionSelector.getSelectedChampionId();
+        const pickId = e.detail.championId;
+        configureBanPick(banId, pickId);
+      });
   }
 });
 // (removed duplicate legacy module block)
