@@ -6,6 +6,56 @@ from config import app_state
 from core import lcu
 
 
+def _get_player_rank_info(token, port, puuid):
+    """
+    获取玩家的段位信息
+    
+    Args:
+        token: LCU认证令牌
+        port: LCU端口
+        puuid: 玩家PUUID
+    
+    Returns:
+        dict: 包含段位信息的字典
+    """
+    try:
+        ranked_stats = lcu.get_ranked_stats(token, port, puuid=puuid)
+        if not ranked_stats or not isinstance(ranked_stats, dict):
+            return {'tier': 'UNRANKED', 'division': '', 'lp': 0}
+        
+        queues = ranked_stats.get('queues', [])
+        if not queues:
+            return {'tier': 'UNRANKED', 'division': '', 'lp': 0}
+        
+        # 查找单双排段位
+        solo_queue = None
+        for queue in queues:
+            queue_type = str(queue.get('queueType') or queue.get('queue') or queue.get('type') or '').upper()
+            if queue_type in ['RANKED_SOLO_5X5', 'RANKED_SOLO', 'SOLO']:
+                solo_queue = queue
+                break
+        
+        if solo_queue:
+            tier = solo_queue.get('tier', 'UNRANKED')
+            division = solo_queue.get('division', '')
+            lp = solo_queue.get('leaguePoints', 0)
+            
+            # 处理特殊段位（大师、宗师、王者没有division）
+            if tier in ['MASTER', 'GRANDMASTER', 'CHALLENGER']:
+                division = ''
+            
+            return {
+                'tier': tier,
+                'division': division,
+                'lp': lp
+            }
+        
+        return {'tier': 'UNRANKED', 'division': '', 'lp': 0}
+    except Exception as e:
+        print(f"⚠️ 获取段位信息失败: {str(e)}")
+        return {'tier': 'UNRANKED', 'division': '', 'lp': 0}
+
+
 def auto_analyze_task(socketio):
     """
     敌我分析的后台任务
@@ -100,10 +150,15 @@ def _analyze_teammates(token, port, socketio):
             puuid = team_member.get('puuid')
             if puuid:
                 app_state.current_teammates.add(puuid)  # 记录队友PUUID
+                
+                # 获取段位信息
+                rank_info = _get_player_rank_info(token, port, puuid)
+                
                 teammates.append({
                     'gameName': team_member.get('gameName', '未知'),
                     'tagLine': team_member.get('tagLine', ''),
-                    'puuid': puuid
+                    'puuid': puuid,
+                    'rank': rank_info
                 })
         
         if teammates:
@@ -146,6 +201,13 @@ def _analyze_enemies(token, port, socketio, retry_count, max_retries):
                 elif enemy.get('puuid') in app_state.current_teammates:
                     print(f"🚫 过滤队友: {enemy.get('summonerName', '未知')}")
             enemies = filtered_enemies
+        
+        # 为每个敌人添加段位信息
+        for enemy in enemies:
+            puuid = enemy.get('puuid')
+            if puuid:
+                rank_info = _get_player_rank_info(token, port, puuid)
+                enemy['rank'] = rank_info
         
         if len(enemies) > 0:
             socketio.emit('enemies_found', {'enemies': enemies})

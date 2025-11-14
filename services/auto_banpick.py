@@ -179,7 +179,7 @@ def hover_champion(token, port, action_id, champion_id):
     Returns:
         dict: 响应数据
     """
-    endpoint = f"/lol-champ-select/v1/session/actions/{action_id}"
+    endpoint = f"/lol-champ-select/v1/session/actions/1"
     
     payload = {
         "championId": champion_id,
