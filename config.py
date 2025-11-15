@@ -30,6 +30,9 @@ class AppState:
         # 自动 Ban/Pick 配置
         self.ban_champion_id: int | None = None
         self.pick_champion_id: int | None = None
+        # 备选 Ban/Pick 英雄队列（按优先级排序）
+        self.ban_candidate_ids: list[int] = []
+        self.pick_candidate_ids: list[int] = []
 
         # LCU凭证 (auth_token may be str or None; app_port may be int or None)
         self.lcu_credentials: dict[str, Any] = {
