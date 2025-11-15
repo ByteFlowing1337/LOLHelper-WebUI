@@ -486,45 +486,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveSelectionsToStorage();
     }
 
-    function renderFallbackChips() {
-      // 渲染 Ban 英雄优先队列徽章
-      if (banFallbackListEl) {
-        banFallbackListEl.innerHTML = "";
-        if (banQueue.length > 0) {
-          const summary = document.createElement("div");
-          summary.className = "d-flex flex-wrap gap-1 align-items-center";
-          summary.innerHTML = '<small class="text-muted me-1">优先级:</small>';
-          banQueue.forEach((id, index) => {
-            const chip = document.createElement("span");
-            chip.className =
-              index === 0 ? "badge bg-primary" : "badge bg-secondary";
-            chip.style.fontSize = "0.75rem";
-            chip.textContent = `${index + 1}. ID ${id}`;
-            summary.appendChild(chip);
-          });
-          banFallbackListEl.appendChild(summary);
-        }
-      }
-
-      // 渲染 Pick 英雄优先队列徽章
-      if (pickFallbackListEl) {
-        pickFallbackListEl.innerHTML = "";
-        if (pickQueue.length > 0) {
-          const summary = document.createElement("div");
-          summary.className = "d-flex flex-wrap gap-1 align-items-center";
-          summary.innerHTML = '<small class="text-muted me-1">优先级:</small>';
-          pickQueue.forEach((id, index) => {
-            const chip = document.createElement("span");
-            chip.className =
-              index === 0 ? "badge bg-primary" : "badge bg-secondary";
-            chip.style.fontSize = "0.75rem";
-            chip.textContent = `${index + 1}. ID ${id}`;
-            summary.appendChild(chip);
-          });
-          pickFallbackListEl.appendChild(summary);
-        }
-      }
-    }
     autoBanPickBtn.addEventListener("click", () => {
       if (!isLCUConnected()) {
         showInlineMessage(
