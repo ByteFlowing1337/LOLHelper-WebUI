@@ -55,6 +55,8 @@ def auto_banpick_task(socketio, ban_champion_id=None, pick_champion_id=None):
                     if local_player_cell_id is None:
                         time.sleep(0.5)
                         continue
+                    ban_champion_id = app_state.ban_champion_id
+                    pick_champion_id = app_state.pick_champion_id
                     
                     # 处理 actions
                     actions = session.get('actions', [])
@@ -126,6 +128,10 @@ def auto_banpick_task(socketio, ban_champion_id=None, pick_champion_id=None):
                     last_phase = phase
                     ban_done = False
                     pick_done = False
+                    socketio.emit("status_update", {
+                        "type": "auto_banpick_stopped",
+                        "message": "自动 Ban/Pick 已结束（离开英雄选择阶段）",
+})
 
             except Exception as e:
                 print(f"❌ 自动 Ban/Pick 任务异常: {e}")
@@ -153,14 +159,38 @@ def complete_action(token, port, action_id, champion_id, action_type='pick'):
         bool: 是否成功
     """
     endpoint = f"/lol-champ-select/v1/session/actions/{action_id}"
-    
+
+    # LCU 要求完整的 TeamBuilderDirect-ChampSelectAction 结构，这里在原 action
+    # 的基础上只覆盖 championId / completed / type，避免缺字段导致 500。
+    action = lcu.get_champ_select_session(token, port)
+    if not action:
+        return False
+
+    # 从当前 session 中找到对应 action 的完整数据
+    actions = action.get("actions", [])
+    found = None
+    for group in actions:
+        if not isinstance(group, list):
+            continue
+        for a in group:
+            if a.get("id") == action_id:
+                found = a
+                break
+        if found:
+            break
+
+    if not found:
+        return False
+
     payload = {
+        **found,
         "championId": champion_id,
         "completed": True,
-        "type": action_type
+        "type": action_type,
     }
-    
-    response = lcu.make_request("PATCH", endpoint, token, port, json_data=payload)
+
+    # core.lcu.client.make_request expects "json" keyword for JSON body
+    response = lcu.make_request("PATCH", endpoint, token, port, json=payload)
     
     # 如果响应不为空且没有错误，认为成功
     return response is not None
@@ -179,11 +209,11 @@ def hover_champion(token, port, action_id, champion_id):
     Returns:
         dict: 响应数据
     """
-    endpoint = f"/lol-champ-select/v1/session/actions/1"
-    
+    endpoint = f"/lol-champ-select/v1/session/actions/{action_id}"
+
     payload = {
         "championId": champion_id,
-        "completed": False
+        "completed": False,
     }
-    
-    return lcu.make_request("PATCH", endpoint, token, port, json_data=payload)
+
+    return lcu.make_request("PATCH", endpoint, token, port, json=payload)
