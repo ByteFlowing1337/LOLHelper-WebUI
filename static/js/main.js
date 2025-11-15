@@ -28,14 +28,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize champion data and selectors
   await loadChampionData();
 
-  const banChampionSelector = createChampionSelector(
-    "ban-champion-selector",
-    "选择要Ban的英雄..."
-  );
-  const pickChampionSelector = createChampionSelector(
-    "pick-champion-selector",
-    "选择要Pick的英雄..."
-  );
+  // 创建 Ban 英雄优先队列选择器（最多3个）
+  const banChampionSelectors = [
+    createChampionSelector("ban-champion-selector-1"),
+    createChampionSelector("ban-champion-selector-2"),
+    createChampionSelector("ban-champion-selector-3"),
+  ];
+
+  // 创建 Pick 英雄优先队列选择器（最多3个）
+  const pickChampionSelectors = [
+    createChampionSelector("pick-champion-selector-1"),
+    createChampionSelector("pick-champion-selector-2"),
+    createChampionSelector("pick-champion-selector-3"),
+  ];
 
   // Helper function to format rank badge
   function formatRankBadge(rank) {
@@ -268,6 +273,62 @@ document.addEventListener("DOMContentLoaded", async () => {
   let autoAnalyzeRunning = false;
   let autoBanPickRunning = false;
 
+  // localStorage 键名用于记忆自动化功能开关状态
+  const STORAGE_KEY_AUTO_ACCEPT = "lcu_ui_auto_accept_enabled";
+  const STORAGE_KEY_AUTO_ANALYZE = "lcu_ui_auto_analyze_enabled";
+  const STORAGE_KEY_AUTO_BANPICK = "lcu_ui_auto_banpick_enabled";
+
+  // 保存自动化功能开关状态
+  function saveAutoFeatureStates() {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY_AUTO_ACCEPT,
+        autoAcceptRunning.toString()
+      );
+      localStorage.setItem(
+        STORAGE_KEY_AUTO_ANALYZE,
+        autoAnalyzeRunning.toString()
+      );
+      localStorage.setItem(
+        STORAGE_KEY_AUTO_BANPICK,
+        autoBanPickRunning.toString()
+      );
+    } catch (e) {
+      console.warn("保存自动化功能状态失败:", e);
+    }
+  }
+
+  // 恢复自动化功能开关状态
+  function restoreAutoFeatureStates() {
+    try {
+      const savedAutoAccept =
+        localStorage.getItem(STORAGE_KEY_AUTO_ACCEPT) === "true";
+      const savedAutoAnalyze =
+        localStorage.getItem(STORAGE_KEY_AUTO_ANALYZE) === "true";
+      const savedAutoBanPick =
+        localStorage.getItem(STORAGE_KEY_AUTO_BANPICK) === "true";
+
+      // 如果上次是开启状态，且 LCU 已连接，则自动启动
+      if (savedAutoAccept && isLCUConnected()) {
+        setTimeout(() => autoAcceptBtn.click(), 500);
+      }
+      if (savedAutoAnalyze && isLCUConnected()) {
+        setTimeout(() => autoAnalyzeBtn.click(), 600);
+      }
+      if (savedAutoBanPick && isLCUConnected()) {
+        setTimeout(() => autoBanPickBtn.click(), 700);
+      }
+
+      console.log("已恢复自动化功能状态:", {
+        autoAccept: savedAutoAccept,
+        autoAnalyze: savedAutoAnalyze,
+        autoBanPick: savedAutoBanPick,
+      });
+    } catch (e) {
+      console.warn("恢复自动化功能状态失败:", e);
+    }
+  }
+
   autoAcceptBtn.addEventListener("click", () => {
     if (!isLCUConnected()) {
       showInlineMessage(
@@ -286,6 +347,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       autoAcceptBtn.classList.remove("btn-success");
       autoAcceptBtn.classList.add("btn-danger");
       showInlineMessage("自动接受对局已启动", { level: "info" });
+      saveAutoFeatureStates();
     } else {
       // 停止
       stopAutoAccept();
@@ -295,6 +357,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       autoAcceptBtn.classList.remove("btn-danger");
       autoAcceptBtn.classList.add("btn-success");
       showInlineMessage("自动接受对局已停止", { level: "info" });
+      saveAutoFeatureStates();
     }
   });
 
@@ -316,6 +379,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       autoAnalyzeBtn.classList.remove("btn-primary");
       autoAnalyzeBtn.classList.add("btn-danger");
       showInlineMessage("敌我分析已启动", { level: "info" });
+      saveAutoFeatureStates();
     } else {
       // 停止
       stopAutoAnalyze();
@@ -325,11 +389,103 @@ document.addEventListener("DOMContentLoaded", async () => {
       autoAnalyzeBtn.classList.remove("btn-danger");
       autoAnalyzeBtn.classList.add("btn-primary");
       showInlineMessage("敌我分析已停止", { level: "info" });
+      saveAutoFeatureStates();
     }
   });
 
   // Auto Ban/Pick Button Handler
-  if (autoBanPickBtn && banChampionSelector && pickChampionSelector) {
+  if (
+    autoBanPickBtn &&
+    banChampionSelectors.length &&
+    pickChampionSelectors.length
+  ) {
+    // Ban/Pick 英雄优先队列
+    const banQueue = [];
+    const pickQueue = [];
+
+    const banFallbackListEl = document.getElementById("ban-fallback-list");
+    const pickFallbackListEl = document.getElementById("pick-fallback-list");
+
+    // localStorage 键名
+    const STORAGE_KEY_BAN = "lcu_ui_ban_champions";
+    const STORAGE_KEY_PICK = "lcu_ui_pick_champions";
+
+    // 保存当前选择到 localStorage
+    function saveSelectionsToStorage() {
+      try {
+        const banIds = banQueue.filter((id) => id);
+        const pickIds = pickQueue.filter((id) => id);
+        localStorage.setItem(STORAGE_KEY_BAN, JSON.stringify(banIds));
+        localStorage.setItem(STORAGE_KEY_PICK, JSON.stringify(pickIds));
+      } catch (e) {
+        console.warn("保存 Ban/Pick 选择失败:", e);
+      }
+    }
+
+    // 从 localStorage 恢复上次选择
+    function loadSelectionsFromStorage() {
+      try {
+        const savedBanIds = JSON.parse(
+          localStorage.getItem(STORAGE_KEY_BAN) || "[]"
+        );
+        const savedPickIds = JSON.parse(
+          localStorage.getItem(STORAGE_KEY_PICK) || "[]"
+        );
+
+        // 恢复 Ban 选择器
+        savedBanIds.forEach((id, index) => {
+          if (
+            index < banChampionSelectors.length &&
+            banChampionSelectors[index]
+          ) {
+            banChampionSelectors[index].setSelectedChampion(id);
+          }
+        });
+
+        // 恢复 Pick 选择器
+        savedPickIds.forEach((id, index) => {
+          if (
+            index < pickChampionSelectors.length &&
+            pickChampionSelectors[index]
+          ) {
+            pickChampionSelectors[index].setSelectedChampion(id);
+          }
+        });
+
+        // 重建队列并渲染
+        rebuildQueueFromSelectors();
+        console.log("已恢复上次 Ban/Pick 选择:", {
+          ban: savedBanIds,
+          pick: savedPickIds,
+        });
+      } catch (e) {
+        console.warn("加载 Ban/Pick 选择失败:", e);
+      }
+    }
+
+    function rebuildQueueFromSelectors() {
+      // 从所有选择器中读取已选英雄ID，按顺序构建队列
+      banQueue.length = 0;
+      pickQueue.length = 0;
+
+      banChampionSelectors.forEach((selector) => {
+        if (selector) {
+          const id = selector.getSelectedChampionId();
+          if (id) banQueue.push(id);
+        }
+      });
+
+      pickChampionSelectors.forEach((selector) => {
+        if (selector) {
+          const id = selector.getSelectedChampionId();
+          if (id) pickQueue.push(id);
+        }
+      });
+
+      renderFallbackChips();
+      saveSelectionsToStorage();
+    }
+
     autoBanPickBtn.addEventListener("click", () => {
       if (!isLCUConnected()) {
         showInlineMessage(
@@ -341,11 +497,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (!autoBanPickRunning) {
         // Get champion IDs from selectors
-        const banId = banChampionSelector.getSelectedChampionId();
-        const pickId = pickChampionSelector.getSelectedChampionId();
+        rebuildQueueFromSelectors();
+        const banId = banQueue[0] || null;
+        const pickId = pickQueue[0] || null;
 
-        // Start with configuration
-        startAutoBanPick(banId, pickId);
+        const banCandidates = [...banQueue];
+        const pickCandidates = [...pickQueue];
+
+        // Start with configuration (包含备选队列)
+        startAutoBanPick({
+          ban_champion_id: banId,
+          pick_champion_id: pickId,
+          ban_candidates: banCandidates,
+          pick_candidates: pickCandidates,
+        });
         autoBanPickRunning = true;
         autoBanPickBtn.innerHTML =
           '<i class="bi bi-stop-circle-fill me-1"></i> 停止 Ban/Pick';
@@ -357,6 +522,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           })`,
           { level: "info" }
         );
+        saveAutoFeatureStates();
       } else {
         // Stop
         stopAutoBanPick();
@@ -366,25 +532,57 @@ document.addEventListener("DOMContentLoaded", async () => {
         autoBanPickBtn.classList.remove("btn-danger");
         autoBanPickBtn.classList.add("btn-warning");
         showInlineMessage("自动Ban/Pick已停止", { level: "info" });
+        saveAutoFeatureStates();
       }
     });
 
-    // Listen for champion selection changes to update configuration on the fly
-    document
-      .getElementById("ban-champion-selector")
-      .addEventListener("championChanged", (e) => {
-        const banId = e.detail.championId;
-        const pickId = pickChampionSelector.getSelectedChampionId();
-        configureBanPick(banId, pickId);
-      });
+    // 监听所有 Ban 选择器的变更
+    banChampionSelectors.forEach((selector, index) => {
+      if (selector) {
+        document
+          .getElementById(`ban-champion-selector-${index + 1}`)
+          .addEventListener("championChanged", (e) => {
+            rebuildQueueFromSelectors();
+            const banId = banQueue[0] || null;
+            const pickId = pickQueue[0] || null;
+            configureBanPick({
+              ban_champion_id: banId,
+              pick_champion_id: pickId,
+              ban_candidates: [...banQueue],
+              pick_candidates: [...pickQueue],
+            });
+          });
+      }
+    });
 
-    document
-      .getElementById("pick-champion-selector")
-      .addEventListener("championChanged", (e) => {
-        const banId = banChampionSelector.getSelectedChampionId();
-        const pickId = e.detail.championId;
-        configureBanPick(banId, pickId);
-      });
+    // 监听所有 Pick 选择器的变更
+    pickChampionSelectors.forEach((selector, index) => {
+      if (selector) {
+        document
+          .getElementById(`pick-champion-selector-${index + 1}`)
+          .addEventListener("championChanged", (e) => {
+            rebuildQueueFromSelectors();
+            const banId = banQueue[0] || null;
+            const pickId = pickQueue[0] || null;
+            configureBanPick({
+              ban_champion_id: banId,
+              pick_champion_id: pickId,
+              ban_candidates: [...banQueue],
+              pick_candidates: [...pickQueue],
+            });
+          });
+      }
+    });
+
+    // 页面加载时恢复上次的选择
+    loadSelectionsFromStorage();
   }
+
+  // 在 socket 连接后恢复自动化功能状态
+  socket.on("connect", () => {
+    setTimeout(() => {
+      restoreAutoFeatureStates();
+    }, 1000); // 等待 LCU 连接状态稳定
+  });
 });
 // (removed duplicate legacy module block)

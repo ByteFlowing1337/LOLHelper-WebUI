@@ -150,12 +150,19 @@ def register_socket_events(socketio):
                 print("❌ 尝试启动自动Ban/Pick失败：LCU 未连接")
                 return
             
-            # Update champion IDs if provided
+            # Update champion IDs and candidate lists if provided
             if data:
                 if 'ban_champion_id' in data:
                     app_state.ban_champion_id = data['ban_champion_id']
                 if 'pick_champion_id' in data:
                     app_state.pick_champion_id = data['pick_champion_id']
+                # 可选备选列表：按优先级顺序
+                ban_candidates = data.get('ban_candidates')
+                pick_candidates = data.get('pick_candidates')
+                if isinstance(ban_candidates, list):
+                    app_state.ban_candidate_ids = [cid for cid in ban_candidates if cid]
+                if isinstance(pick_candidates, list):
+                    app_state.pick_candidate_ids = [cid for cid in pick_candidates if cid]
             
             thread = app_state.auto_banpick_thread
             if thread and not thread.is_alive():
@@ -195,11 +202,17 @@ def register_socket_events(socketio):
         """配置自动Ban/Pick的英雄ID"""
         ban_id = data.get('ban_champion_id')
         pick_id = data.get('pick_champion_id')
+        ban_candidates = data.get('ban_candidates')
+        pick_candidates = data.get('pick_candidates')
         
         if ban_id is not None:
             app_state.ban_champion_id = ban_id
         if pick_id is not None:
             app_state.pick_champion_id = pick_id
+        if isinstance(ban_candidates, list):
+            app_state.ban_candidate_ids = [cid for cid in ban_candidates if cid]
+        if isinstance(pick_candidates, list):
+            app_state.pick_candidate_ids = [cid for cid in pick_candidates if cid]
         
         ban_msg = f"Ban: {app_state.ban_champion_id}" if app_state.ban_champion_id else "未设置"
         pick_msg = f"Pick: {app_state.pick_champion_id}" if app_state.pick_champion_id else "未设置"
