@@ -28,14 +28,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize champion data and selectors
   await loadChampionData();
 
-  const banChampionSelector = createChampionSelector(
-    "ban-champion-selector",
-    "选择要Ban的英雄..."
-  );
-  const pickChampionSelector = createChampionSelector(
-    "pick-champion-selector",
-    "选择要Pick的英雄..."
-  );
+  // 创建 Ban 英雄优先队列选择器（最多3个）
+  const banChampionSelectors = [
+    createChampionSelector("ban-champion-selector-1"),
+    createChampionSelector("ban-champion-selector-2"),
+    createChampionSelector("ban-champion-selector-3"),
+  ];
+
+  // 创建 Pick 英雄优先队列选择器（最多3个）
+  const pickChampionSelectors = [
+    createChampionSelector("pick-champion-selector-1"),
+    createChampionSelector("pick-champion-selector-2"),
+    createChampionSelector("pick-champion-selector-3"),
+  ];
 
   // Helper function to format rank badge
   function formatRankBadge(rank) {
@@ -329,7 +334,79 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // Auto Ban/Pick Button Handler
-  if (autoBanPickBtn && banChampionSelector && pickChampionSelector) {
+  if (
+    autoBanPickBtn &&
+    banChampionSelectors.length &&
+    pickChampionSelectors.length
+  ) {
+    // Ban/Pick 英雄优先队列
+    const banQueue = [];
+    const pickQueue = [];
+
+    const banFallbackListEl = document.getElementById("ban-fallback-list");
+    const pickFallbackListEl = document.getElementById("pick-fallback-list");
+
+    function rebuildQueueFromSelectors() {
+      // 从所有选择器中读取已选英雄ID，按顺序构建队列
+      banQueue.length = 0;
+      pickQueue.length = 0;
+
+      banChampionSelectors.forEach((selector) => {
+        if (selector) {
+          const id = selector.getSelectedChampionId();
+          if (id) banQueue.push(id);
+        }
+      });
+
+      pickChampionSelectors.forEach((selector) => {
+        if (selector) {
+          const id = selector.getSelectedChampionId();
+          if (id) pickQueue.push(id);
+        }
+      });
+
+      renderFallbackChips();
+    }
+
+    function renderFallbackChips() {
+      // 渲染 Ban 英雄优先队列徽章
+      if (banFallbackListEl) {
+        banFallbackListEl.innerHTML = "";
+        if (banQueue.length > 0) {
+          const summary = document.createElement("div");
+          summary.className = "d-flex flex-wrap gap-1 align-items-center";
+          summary.innerHTML = '<small class="text-muted me-1">优先级:</small>';
+          banQueue.forEach((id, index) => {
+            const chip = document.createElement("span");
+            chip.className =
+              index === 0 ? "badge bg-primary" : "badge bg-secondary";
+            chip.style.fontSize = "0.75rem";
+            chip.textContent = `${index + 1}. ID ${id}`;
+            summary.appendChild(chip);
+          });
+          banFallbackListEl.appendChild(summary);
+        }
+      }
+
+      // 渲染 Pick 英雄优先队列徽章
+      if (pickFallbackListEl) {
+        pickFallbackListEl.innerHTML = "";
+        if (pickQueue.length > 0) {
+          const summary = document.createElement("div");
+          summary.className = "d-flex flex-wrap gap-1 align-items-center";
+          summary.innerHTML = '<small class="text-muted me-1">优先级:</small>';
+          pickQueue.forEach((id, index) => {
+            const chip = document.createElement("span");
+            chip.className =
+              index === 0 ? "badge bg-primary" : "badge bg-secondary";
+            chip.style.fontSize = "0.75rem";
+            chip.textContent = `${index + 1}. ID ${id}`;
+            summary.appendChild(chip);
+          });
+          pickFallbackListEl.appendChild(summary);
+        }
+      }
+    }
     autoBanPickBtn.addEventListener("click", () => {
       if (!isLCUConnected()) {
         showInlineMessage(
@@ -341,11 +418,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (!autoBanPickRunning) {
         // Get champion IDs from selectors
-        const banId = banChampionSelector.getSelectedChampionId();
-        const pickId = pickChampionSelector.getSelectedChampionId();
+        rebuildQueueFromSelectors();
+        const banId = banQueue[0] || null;
+        const pickId = pickQueue[0] || null;
 
-        // Start with configuration
-        startAutoBanPick(banId, pickId);
+        const banCandidates = [...banQueue];
+        const pickCandidates = [...pickQueue];
+
+        // Start with configuration (包含备选队列)
+        startAutoBanPick({
+          ban_champion_id: banId,
+          pick_champion_id: pickId,
+          ban_candidates: banCandidates,
+          pick_candidates: pickCandidates,
+        });
         autoBanPickRunning = true;
         autoBanPickBtn.innerHTML =
           '<i class="bi bi-stop-circle-fill me-1"></i> 停止 Ban/Pick';
@@ -369,22 +455,43 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // Listen for champion selection changes to update configuration on the fly
-    document
-      .getElementById("ban-champion-selector")
-      .addEventListener("championChanged", (e) => {
-        const banId = e.detail.championId;
-        const pickId = pickChampionSelector.getSelectedChampionId();
-        configureBanPick(banId, pickId);
-      });
+    // 监听所有 Ban 选择器的变更
+    banChampionSelectors.forEach((selector, index) => {
+      if (selector) {
+        document
+          .getElementById(`ban-champion-selector-${index + 1}`)
+          .addEventListener("championChanged", (e) => {
+            rebuildQueueFromSelectors();
+            const banId = banQueue[0] || null;
+            const pickId = pickQueue[0] || null;
+            configureBanPick({
+              ban_champion_id: banId,
+              pick_champion_id: pickId,
+              ban_candidates: [...banQueue],
+              pick_candidates: [...pickQueue],
+            });
+          });
+      }
+    });
 
-    document
-      .getElementById("pick-champion-selector")
-      .addEventListener("championChanged", (e) => {
-        const banId = banChampionSelector.getSelectedChampionId();
-        const pickId = e.detail.championId;
-        configureBanPick(banId, pickId);
-      });
+    // 监听所有 Pick 选择器的变更
+    pickChampionSelectors.forEach((selector, index) => {
+      if (selector) {
+        document
+          .getElementById(`pick-champion-selector-${index + 1}`)
+          .addEventListener("championChanged", (e) => {
+            rebuildQueueFromSelectors();
+            const banId = banQueue[0] || null;
+            const pickId = pickQueue[0] || null;
+            configureBanPick({
+              ban_champion_id: banId,
+              pick_champion_id: pickId,
+              ban_candidates: [...banQueue],
+              pick_candidates: [...pickQueue],
+            });
+          });
+      }
+    });
   }
 });
 // (removed duplicate legacy module block)
