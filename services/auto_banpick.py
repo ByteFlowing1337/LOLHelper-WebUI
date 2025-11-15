@@ -128,6 +128,10 @@ def auto_banpick_task(socketio, ban_champion_id=None, pick_champion_id=None):
                     last_phase = phase
                     ban_done = False
                     pick_done = False
+                    socketio.emit("status_update", {
+                        "type": "auto_banpick_stopped",
+                        "message": "自动 Ban/Pick 已结束（离开英雄选择阶段）",
+})
 
             except Exception as e:
                 print(f"❌ 自动 Ban/Pick 任务异常: {e}")
