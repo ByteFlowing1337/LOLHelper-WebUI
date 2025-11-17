@@ -46,7 +46,7 @@ function getChampionName(championId) {
 }
 
 // Create champion selector component
-function createChampionSelector(elementId, placeholder = "选择英雄...") {
+function createChampionSelector(elementId, placeholder = "") {
   const container = document.getElementById(elementId);
   if (!container) {
     console.error(`Element with ID '${elementId}' not found`);

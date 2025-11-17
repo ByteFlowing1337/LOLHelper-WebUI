@@ -10,6 +10,7 @@ import { setupSocket } from "./modules/socketHandler.js";
 import {
   loadChampionData,
   createChampionSelector,
+  getChampionName,
 } from "./modules/championSelector.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -28,19 +29,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize champion data and selectors
   await loadChampionData();
 
-  // 创建 Ban 英雄优先队列选择器（最多3个）
-  const banChampionSelectors = [
-    createChampionSelector("ban-champion-selector-1"),
-    createChampionSelector("ban-champion-selector-2"),
-    createChampionSelector("ban-champion-selector-3"),
-  ];
-
-  // 创建 Pick 英雄优先队列选择器（最多3个）
-  const pickChampionSelectors = [
-    createChampionSelector("pick-champion-selector-1"),
-    createChampionSelector("pick-champion-selector-2"),
-    createChampionSelector("pick-champion-selector-3"),
-  ];
+  // 动态 Ban/Pick 英雄选择器数组
+  const banChampionSelectors = [];
+  const pickChampionSelectors = [];
 
   // Helper function to format rank badge
   function formatRankBadge(rank) {
@@ -394,21 +385,175 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // Auto Ban/Pick Button Handler
-  if (
-    autoBanPickBtn &&
-    banChampionSelectors.length &&
-    pickChampionSelectors.length
-  ) {
+  if (autoBanPickBtn) {
     // Ban/Pick 英雄优先队列
     const banQueue = [];
     const pickQueue = [];
 
-    const banFallbackListEl = document.getElementById("ban-fallback-list");
-    const pickFallbackListEl = document.getElementById("pick-fallback-list");
+    const banSelectorsContainer = document.getElementById(
+      "ban-selectors-container"
+    );
+    const pickSelectorsContainer = document.getElementById(
+      "pick-selectors-container"
+    );
+
+    let banSelectorIdCounter = 0;
+    let pickSelectorIdCounter = 0;
 
     // localStorage 键名
     const STORAGE_KEY_BAN = "lcu_ui_ban_champions";
     const STORAGE_KEY_PICK = "lcu_ui_pick_champions";
+
+    // 添加新的 Ban 选择器
+    function addBanSelector() {
+      const index = banChampionSelectors.length;
+      const selectorId = `ban-champion-selector-${banSelectorIdCounter++}`;
+      const wrapper = document.createElement("div");
+      wrapper.className = "selector-wrapper";
+      wrapper.id = `${selectorId}-wrapper`;
+
+      const selectorDiv = document.createElement("div");
+      selectorDiv.id = selectorId;
+      wrapper.appendChild(selectorDiv);
+
+      // 添加删除按钮
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "btn btn-sm btn-outline-danger";
+      deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      deleteBtn.title = "删除此选择器";
+      deleteBtn.addEventListener("click", () => {
+        removeBanSelector(index);
+      });
+      wrapper.appendChild(deleteBtn);
+
+      banSelectorsContainer.appendChild(wrapper);
+
+      const selector = createChampionSelector(selectorId);
+      banChampionSelectors.push(selector);
+
+      // 监听选择变化
+      document
+        .getElementById(selectorId)
+        .addEventListener("championChanged", () => {
+          rebuildQueueFromSelectors();
+
+          // 如果这是最后一个选择器且已选择英雄，添加新选择器
+          const lastSelector =
+            banChampionSelectors[banChampionSelectors.length - 1];
+          if (selector === lastSelector && selector.getSelectedChampionId()) {
+            addBanSelector();
+          }
+
+          updateBackendConfig();
+        });
+
+      return selector;
+    }
+
+    // 添加新的 Pick 选择器
+    function addPickSelector() {
+      const index = pickChampionSelectors.length;
+      const selectorId = `pick-champion-selector-${pickSelectorIdCounter++}`;
+      const wrapper = document.createElement("div");
+      wrapper.className = "selector-wrapper";
+      wrapper.id = `${selectorId}-wrapper`;
+
+      const selectorDiv = document.createElement("div");
+      selectorDiv.id = selectorId;
+      wrapper.appendChild(selectorDiv);
+
+      // 添加删除按钮
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "btn btn-sm btn-outline-danger";
+      deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      deleteBtn.title = "删除此选择器";
+      deleteBtn.addEventListener("click", () => {
+        removePickSelector(index);
+      });
+      wrapper.appendChild(deleteBtn);
+
+      pickSelectorsContainer.appendChild(wrapper);
+
+      const selector = createChampionSelector(selectorId);
+      pickChampionSelectors.push(selector);
+
+      // 监听选择变化
+      document
+        .getElementById(selectorId)
+        .addEventListener("championChanged", () => {
+          rebuildQueueFromSelectors();
+
+          // 如果这是最后一个选择器且已选择英雄，添加新选择器
+          const lastSelector =
+            pickChampionSelectors[pickChampionSelectors.length - 1];
+          if (selector === lastSelector && selector.getSelectedChampionId()) {
+            addPickSelector();
+          }
+
+          updateBackendConfig();
+        });
+
+      return selector;
+    }
+
+    // 删除 Ban 选择器
+    function removeBanSelector(index) {
+      if (index >= 0 && index < banChampionSelectors.length) {
+        // 通过遍历容器找到对应的 wrapper
+        const wrappers =
+          banSelectorsContainer.querySelectorAll(".selector-wrapper");
+        if (wrappers[index]) {
+          wrappers[index].remove();
+        }
+
+        banChampionSelectors.splice(index, 1);
+        rebuildQueueFromSelectors();
+        updateBackendConfig();
+
+        // 确保至少有一个空选择器
+        if (
+          banChampionSelectors.length === 0 ||
+          !banChampionSelectors.some((s) => !s.getSelectedChampionId())
+        ) {
+          addBanSelector();
+        }
+      }
+    }
+
+    // 删除 Pick 选择器
+    function removePickSelector(index) {
+      if (index >= 0 && index < pickChampionSelectors.length) {
+        // 通过遍历容器找到对应的 wrapper
+        const wrappers =
+          pickSelectorsContainer.querySelectorAll(".selector-wrapper");
+        if (wrappers[index]) {
+          wrappers[index].remove();
+        }
+
+        pickChampionSelectors.splice(index, 1);
+        rebuildQueueFromSelectors();
+        updateBackendConfig();
+
+        // 确保至少有一个空选择器
+        if (
+          pickChampionSelectors.length === 0 ||
+          !pickChampionSelectors.some((s) => !s.getSelectedChampionId())
+        ) {
+          addPickSelector();
+        }
+      }
+    }
+
+    // 从队列中删除英雄（通过清除选择器并移除它）
+    function removeChampionFromQueue(type, index) {
+      if (type === "ban") {
+        removeBanSelector(index);
+      } else if (type === "pick") {
+        removePickSelector(index);
+      }
+    }
 
     // 保存当前选择到 localStorage
     function saveSelectionsToStorage() {
@@ -432,27 +577,19 @@ document.addEventListener("DOMContentLoaded", async () => {
           localStorage.getItem(STORAGE_KEY_PICK) || "[]"
         );
 
-        // 恢复 Ban 选择器
-        savedBanIds.forEach((id, index) => {
-          if (
-            index < banChampionSelectors.length &&
-            banChampionSelectors[index]
-          ) {
-            banChampionSelectors[index].setSelectedChampion(id);
-          }
+        // 为每个保存的 Ban ID 创建选择器并设置
+        savedBanIds.forEach((id) => {
+          const selector = addBanSelector();
+          selector.setSelectedChampion(id);
         });
 
-        // 恢复 Pick 选择器
-        savedPickIds.forEach((id, index) => {
-          if (
-            index < pickChampionSelectors.length &&
-            pickChampionSelectors[index]
-          ) {
-            pickChampionSelectors[index].setSelectedChampion(id);
-          }
+        // 为每个保存的 Pick ID 创建选择器并设置
+        savedPickIds.forEach((id) => {
+          const selector = addPickSelector();
+          selector.setSelectedChampion(id);
         });
 
-        // 重建队列并渲染
+        // 重建队列
         rebuildQueueFromSelectors();
         console.log("已恢复上次 Ban/Pick 选择:", {
           ban: savedBanIds,
@@ -460,6 +597,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
       } catch (e) {
         console.warn("加载 Ban/Pick 选择失败:", e);
+      }
+
+      // 确保至少有一个空的 Ban 和 Pick 选择器
+      if (
+        banChampionSelectors.length === 0 ||
+        !banChampionSelectors.some((s) => !s.getSelectedChampionId())
+      ) {
+        addBanSelector();
+      }
+      if (
+        pickChampionSelectors.length === 0 ||
+        !pickChampionSelectors.some((s) => !s.getSelectedChampionId())
+      ) {
+        addPickSelector();
       }
     }
 
@@ -482,8 +633,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
 
-      renderFallbackChips();
       saveSelectionsToStorage();
+    }
+
+    // 更新后端配置
+    function updateBackendConfig() {
+      const banId = banQueue[0] || null;
+      const pickId = pickQueue[0] || null;
+      configureBanPick({
+        ban_champion_id: banId,
+        pick_champion_id: pickId,
+        ban_candidates: [...banQueue],
+        pick_candidates: [...pickQueue],
+      });
     }
 
     autoBanPickBtn.addEventListener("click", () => {
@@ -533,44 +695,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         autoBanPickBtn.classList.add("btn-warning");
         showInlineMessage("自动Ban/Pick已停止", { level: "info" });
         saveAutoFeatureStates();
-      }
-    });
-
-    // 监听所有 Ban 选择器的变更
-    banChampionSelectors.forEach((selector, index) => {
-      if (selector) {
-        document
-          .getElementById(`ban-champion-selector-${index + 1}`)
-          .addEventListener("championChanged", (e) => {
-            rebuildQueueFromSelectors();
-            const banId = banQueue[0] || null;
-            const pickId = pickQueue[0] || null;
-            configureBanPick({
-              ban_champion_id: banId,
-              pick_champion_id: pickId,
-              ban_candidates: [...banQueue],
-              pick_candidates: [...pickQueue],
-            });
-          });
-      }
-    });
-
-    // 监听所有 Pick 选择器的变更
-    pickChampionSelectors.forEach((selector, index) => {
-      if (selector) {
-        document
-          .getElementById(`pick-champion-selector-${index + 1}`)
-          .addEventListener("championChanged", (e) => {
-            rebuildQueueFromSelectors();
-            const banId = banQueue[0] || null;
-            const pickId = pickQueue[0] || null;
-            configureBanPick({
-              ban_champion_id: banId,
-              pick_champion_id: pickId,
-              ban_candidates: [...banQueue],
-              pick_candidates: [...pickQueue],
-            });
-          });
       }
     });
 
