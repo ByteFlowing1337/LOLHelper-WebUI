@@ -269,6 +269,53 @@
           font-size: 12px;
         }
       }
+
+      /* Selector Wrapper Styles - for dynamic selectors with delete buttons */
+      .selector-wrapper {
+        display: flex !important;
+        align-items: stretch;
+        gap: 6px;
+        margin-bottom: 8px;
+        width: 100%;
+      }
+
+      .selector-wrapper > div:first-child {
+        flex: 1;
+        min-width: 0; /* Allow flexbox to shrink */
+      }
+
+      .selector-wrapper .btn {
+        flex-shrink: 0;
+        height: auto;
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.5rem;
+        font-size: 0.875rem;
+      }
+
+      /* Ensure selectors containers are properly sized */
+      #ban-selectors-container,
+      #pick-selectors-container {
+        width: 100%;
+      }
+
+      /* Delete button hover effect */
+      .selector-wrapper .btn-outline-danger:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+      }
+
+      /* Empty state for selector containers */
+      .selector-wrapper:last-child {
+        margin-bottom: 0;
+      }
+
+      /* Prevent button text wrapping */
+      .selector-wrapper .btn i {
+        margin: 0;
+      }
     </style>
   </head>
   <body>
