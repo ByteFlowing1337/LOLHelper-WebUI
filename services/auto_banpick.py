@@ -155,6 +155,34 @@ def auto_banpick_task(socketio, ban_champion_id=None, pick_champion_id=None):
                     
                     # 处理 actions
                     actions = session.get('actions', [])
+                    # 收集当前已被禁用/已被选中的英雄ID，用于跳过不可用的候选
+                    banned_ids = set()
+                    picked_ids = set()
+
+                    for team in session.get('teams', []):
+                        for ban in team.get('bans', []):
+                            cid = ban.get('championId')
+                            if cid:
+                                banned_ids.add(cid)
+
+                    for action_group in actions:
+                        if not isinstance(action_group, list):
+                            continue
+                        for a in action_group:
+                            cid = a.get('championId')
+                            if cid and a.get('completed'):
+                                picked_ids.add(cid)
+
+                    # 构建 Ban/Pick 候选列表（主目标优先，其次备选队列）
+                    ban_candidates = []
+                    pick_candidates = []
+                    if ban_champion_id:
+                        ban_candidates.append(ban_champion_id)
+                    ban_candidates.extend(getattr(app_state, 'ban_candidate_ids', []) or [])
+
+                    if pick_champion_id:
+                        pick_candidates.append(pick_champion_id)
+                    pick_candidates.extend(getattr(app_state, 'pick_candidate_ids', []) or [])
                     for action_group in actions:
                         if not isinstance(action_group, list):
                             continue
@@ -172,17 +200,61 @@ def auto_banpick_task(socketio, ban_champion_id=None, pick_champion_id=None):
                             if completed or not is_in_progress:
                                 continue
                             
-                            # 自动 Ban
+                            # 自动 Ban：按候选顺序寻找第一个可用英雄
                             if action_type == 'ban' and not ban_done and ban_candidates:
-                                if _try_ban_champion(socketio, token, port, action_id, ban_candidates, unavailable_ids):
-                                    ban_done = True
-                                    break
+                                for cid in ban_candidates:
+                                    if not cid:
+                                        continue
+                                    if cid in banned_ids or cid in picked_ids:
+                                        continue
+                                    try:
+                                        success = complete_action(
+                                            token, port, action_id, cid,
+                                            action_type='ban'
+                                        )
+                                        if success:
+                                            ban_done = True
+                                            app_state.ban_champion_id = cid
+                                            socketio.emit('status_update', {
+                                                'type': 'success',
+                                                'message': f'✅ 已自动禁用英雄 (ID: {cid})'
+                                            })
+                                            print(f"✅ 自动禁用英雄成功: {cid}")
+                                            break
+                                    except Exception as e:
+                                        print(f"⚠️ 自动禁用英雄失败: {e}")
+                                        socketio.emit('status_update', {
+                                            'type': 'warning',
+                                            'message': f'⚠️ 自动禁用失败: {e}'
+                                        })
                             
-                            # 自动 Pick
+                            # 自动 Pick：按候选顺序寻找第一个可用英雄
                             elif action_type == 'pick' and not pick_done and pick_candidates:
-                                if _try_pick_champion(socketio, token, port, action_id, pick_candidates, unavailable_ids):
-                                    pick_done = True
-                                    break
+                                for cid in pick_candidates:
+                                    if not cid:
+                                        continue
+                                    if cid in banned_ids or cid in picked_ids:
+                                        continue
+                                    try:
+                                        success = complete_action(
+                                            token, port, action_id, cid,
+                                            action_type='pick'
+                                        )
+                                        if success:
+                                            pick_done = True
+                                            app_state.pick_champion_id = cid
+                                            socketio.emit('status_update', {
+                                                'type': 'success',
+                                                'message': f'✅ 已自动选择英雄 (ID: {cid})'
+                                            })
+                                            print(f"✅ 自动选择英雄成功: {cid}")
+                                            break
+                                    except Exception as e:
+                                        print(f"⚠️ 自动选择英雄失败: {e}")
+                                        socketio.emit('status_update', {
+                                            'type': 'warning',
+                                            'message': f'⚠️ 自动选择失败: {e}'
+                                        })
                 
                 elif phase != "ChampSelect" and last_phase == "ChampSelect":
                     print("🏁 离开英雄选择阶段")
