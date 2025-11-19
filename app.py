@@ -49,6 +49,24 @@ def create_app():
     return app, socketio
 
 
+def _wait_and_open_browser(url, host, port, timeout, interval):
+    """等待服务器就绪并打开浏览器"""
+    import socket
+    import time
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((host, int(port)), timeout=1):
+                print(f"检测到服务器 {host}:{port} 可连接，准备打开浏览器: {url}")
+                webbrowser.open(url)
+                return
+        except Exception:
+            time.sleep(interval)
+    # 超时了，仍然尝试打开一次（避免完全不打开的情况）
+    print(f"等待 {host}:{port} 超时 ({timeout}s)，将尝试直接打开浏览器: {url}")
+    webbrowser.open(url)
+
+
 def open_browser_when_ready(url, host='127.0.0.1', port=5000, timeout=10, interval=0.2):
     """
     在服务器端口可连接后打开浏览器（在单独线程中运行）。
@@ -62,23 +80,11 @@ def open_browser_when_ready(url, host='127.0.0.1', port=5000, timeout=10, interv
         timeout: 最长等待秒数
         interval: 重试间隔秒数
     """
-    def _wait_and_open():
-        import socket
-        import time
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            try:
-                with socket.create_connection((host, int(port)), timeout=1):
-                    print(f"检测到服务器 {host}:{port} 可连接，准备打开浏览器: {url}")
-                    webbrowser.open(url)
-                    return
-            except Exception:
-                time.sleep(interval)
-        # 超时了，仍然尝试打开一次（避免完全不打开的情况）
-        print(f"等待 {host}:{port} 超时 ({timeout}s)，将尝试直接打开浏览器: {url}")
-        webbrowser.open(url)
-
-    t = threading.Thread(target=_wait_and_open, daemon=True)
+    t = threading.Thread(
+        target=_wait_and_open_browser, 
+        args=(url, host, port, timeout, interval), 
+        daemon=True
+    )
     t.start()
 
 

@@ -1,6 +1,6 @@
 """
-游戏数据处理器模块
-提供 LOL 和 TFT 游戏数据处理功能
+[DEPRECATED] 游戏数据处理器模块
+请使用 services.match_service 代替。
 """
 from .lol_processor import (
     process_lol_match_history,

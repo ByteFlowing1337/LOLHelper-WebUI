@@ -13,3 +13,4 @@ env/
 *.py.bak
 .idea/
 tempcoderunnerfile.py
+scripts/

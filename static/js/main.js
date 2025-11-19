@@ -4,6 +4,7 @@ import {
   isLCUConnected,
   setLCUStatus,
   qs,
+  formatRankBadge,
 } from "./modules/ui.js";
 import { fetchSummonerStats, fetchTFTMatches } from "./modules/api.js";
 import { setupSocket } from "./modules/socketHandler.js";
@@ -33,63 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const banChampionSelectors = [];
   const pickChampionSelectors = [];
 
-  // Helper function to format rank badge
-  function formatRankBadge(rank) {
-    if (!rank || rank.tier === "UNRANKED") {
-      return '<span class="badge bg-secondary" style="font-size: 0.7rem;">未定级</span>';
-    }
-
-    const tierColors = {
-      IRON: "#6B5D57",
-      BRONZE: "#CD7F32",
-      SILVER: "#C0C0C0",
-      GOLD: "#FFD700",
-      PLATINUM: "#4EC9B0",
-      EMERALD: "#00C896",
-      DIAMOND: "#B9F2FF",
-      MASTER: "#9B4F96",
-      GRANDMASTER: "#E74856",
-      CHALLENGER: "#F1C40F",
-    };
-
-    const tierNames = {
-      IRON: "黑铁",
-      BRONZE: "青铜",
-      SILVER: "白银",
-      GOLD: "黄金",
-      PLATINUM: "铂金",
-      EMERALD: "翡翠",
-      DIAMOND: "钻石",
-      MASTER: "大师",
-      GRANDMASTER: "宗师",
-      CHALLENGER: "王者",
-    };
-
-    const divisionNames = {
-      I: "I",
-      II: "II",
-      III: "III",
-      IV: "IV",
-    };
-
-    const tier = rank.tier.toUpperCase();
-    const color = tierColors[tier] || "#6C757D";
-    const tierName = tierNames[tier] || tier;
-    const division = rank.division
-      ? divisionNames[rank.division] || rank.division
-      : "";
-    const lp = rank.lp || 0;
-
-    let rankText = tierName;
-    if (division) {
-      rankText += ` ${division}`;
-    }
-    if (["MASTER", "GRANDMASTER", "CHALLENGER"].includes(tier)) {
-      rankText += ` ${lp}点`;
-    }
-
-    return `<span class="badge" style="background-color: ${color}; font-size: 0.7rem;">${rankText}</span>`;
-  } // socket handlers
+  // socket handlers
   const {
     socket,
     startAutoAccept,

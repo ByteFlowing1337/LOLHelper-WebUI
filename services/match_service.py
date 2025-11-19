@@ -6,6 +6,9 @@ routes can stay thin and focused on HTTP concerns.
 """
 from datetime import datetime
 import constants
+from core import lcu
+from core.lcu.enrichment import enrich_game_with_augments, enrich_tft_game_with_summoner_info
+
 
 
 def format_game_mode(mode):
@@ -325,3 +328,95 @@ def process_match_history(history, puuid=None):
         summary['match_index'] = idx
         processed_games.append(summary)
     return processed_games
+
+
+def get_match_detail(token, port, summoner_name, index, match_id=None, is_tft=False):
+    """
+    获取完整对局详情 (LOL 或 TFT)
+    
+    Returns:
+        dict: 对局数据
+    Raises:
+        ValueError: 参数错误
+        RuntimeError: LCU 连接或查询失败
+    """
+    # 如果有 match_id，直接通过 match_id 查询（仅支持 LOL）
+    if match_id and not is_tft:
+        match_obj = lcu.get_match_by_id(token, port, match_id)
+        if match_obj:
+            game = match_obj.get('game') if (isinstance(match_obj, dict) and 'game' in match_obj) else match_obj
+            try:
+                lcu.enrich_game_with_summoner_info(token, port, game)
+                enrich_game_with_augments(game)
+            except Exception as e:
+                print(f"召唤师信息补全失败 (match_id path): {e}")
+            return game
+        else:
+            raise RuntimeError("通过 match_id 获取对局失败")
+
+    if not summoner_name or index is None:
+        raise ValueError("缺少参数 name 或 index")
+
+    puuid = lcu.get_puuid(token, port, summoner_name)
+    if not puuid:
+        raise RuntimeError(f"找不到召唤师 '{summoner_name}' 或 LCU API 失败")
+
+    if is_tft:
+        # TFT 战绩查询
+        fetch_count = min(index + 20, 200)
+        history = lcu.get_tft_match_history(token, port, puuid, count=fetch_count)
+        if not history:
+            raise RuntimeError("获取 TFT 战绩失败")
+
+        games = history.get('games', {}).get('games', [])
+        if index < 0 or index >= len(games):
+            raise ValueError("索引越界")
+
+        game_summary = games[index]
+        
+        # TFT 的 match_id 通常在 metadata.match_id 中
+        metadata = game_summary.get('metadata', {})
+        game_match_id = metadata.get('match_id') if isinstance(metadata, dict) else None
+        
+        if not game_match_id:
+            game_match_id = game_summary.get('matchId') or game_summary.get('gameId') or game_summary.get('match_id')
+        
+        game = game_summary
+        if game_match_id:
+            full_game = lcu.get_match_by_id(token, port, game_match_id)
+            if full_game:
+                game = full_game.get('game') if (isinstance(full_game, dict) and 'game' in full_game) else full_game
+        
+        try:
+            enrich_tft_game_with_summoner_info(token, port, game)
+        except Exception as e:
+            print(f"TFT 召唤师信息补全失败: {e}")
+            
+        return game
+    else:
+        # LOL 战绩查询
+        fetch_count = min(index + 20, 200)
+        history = lcu.get_match_history(token, port, puuid, count=fetch_count)
+        if not history:
+            raise RuntimeError("获取战绩失败")
+
+        games = history.get('games', {}).get('games', [])
+        if index < 0 or index >= len(games):
+            raise ValueError("索引越界")
+
+        game_summary = games[index]
+        game_match_id = game_summary.get('matchId') or game_summary.get('gameId') or game_summary.get('match_id')
+        
+        game = game_summary
+        if game_match_id:
+            full_game = lcu.get_match_by_id(token, port, game_match_id)
+            if full_game:
+                game = full_game.get('game') if (isinstance(full_game, dict) and 'game' in full_game) else full_game
+
+        try:
+            lcu.enrich_game_with_summoner_info(token, port, game)
+            enrich_game_with_augments(game)
+        except Exception as e:
+            print(f"召唤师信息补全失败: {e}")
+
+        return game
