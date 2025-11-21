@@ -106,9 +106,11 @@ def auto_analyze_task(socketio):
 
                 # EndOfGame 阶段：显示提示
                 elif phase == "EndOfGame":
-                    if app_state.teammate_analysis_done or app_state.enemy_analysis_done:
-                        socketio.emit('status_update', {'type': 'biz', 'message': '🏁 比赛结束，等待下一局...'})
-                        print("🏁 游戏结束")
+                    # 只在刚进入 EndOfGame 时提示一次
+                    if last_phase != "EndOfGame":
+                        if app_state.teammate_analysis_done or app_state.enemy_analysis_done:
+                            socketio.emit('status_update', {'type': 'biz', 'message': '🏁 比赛结束，等待下一局...'})
+                            print("🏁 游戏结束")
 
                 # 更新上一次的阶段
                 last_phase = phase
