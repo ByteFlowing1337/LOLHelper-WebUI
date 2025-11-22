@@ -364,8 +364,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       // 添加删除按钮
       const deleteBtn = document.createElement("button");
       deleteBtn.type = "button";
-      deleteBtn.className = "btn btn-sm btn-outline-danger";
-      deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      deleteBtn.className = "selector-delete-btn";
+      deleteBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
       deleteBtn.title = "删除此选择器";
       deleteBtn.addEventListener("click", () => {
         removeBanSelector(index);
@@ -411,8 +411,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       // 添加删除按钮
       const deleteBtn = document.createElement("button");
       deleteBtn.type = "button";
-      deleteBtn.className = "btn btn-sm btn-outline-danger";
-      deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      deleteBtn.className = "selector-delete-btn";
+      deleteBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
       deleteBtn.title = "删除此选择器";
       deleteBtn.addEventListener("click", () => {
         removePickSelector(index);
