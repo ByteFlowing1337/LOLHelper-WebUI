@@ -3,17 +3,19 @@ export function qs(id) {
   return document.getElementById(id);
 }
 
+let lcuConnectionState = "unknown";
+
 export function showInlineMessage(
   message,
   { targetId = "realtime-status", level = "info", timeout = 5000 } = {}
 ) {
   const contentEl = qs(targetId);
   const islandEl = qs("dynamic-island");
-  
+
   if (!contentEl || !islandEl) return;
-  
+
   contentEl.textContent = message;
-  
+
   // Map levels to island status classes and icons
   const config = {
     info: { class: "island-status-info", icon: "bi-info-circle" },
@@ -25,7 +27,7 @@ export function showInlineMessage(
 
   // Reset classes
   islandEl.className = `dynamic-island ${config.class}`;
-  
+
   // Update icon
   const iconEl = islandEl.querySelector(".island-icon i");
   if (iconEl) {
@@ -49,11 +51,22 @@ export function showInlineMessage(
 
 export function isLCUConnected() {
   const statusEl = qs("lcu-status");
-  if (!statusEl) return false;
-  const txt = (statusEl.textContent || "").toLowerCase();
-  return (
-    txt.includes("成功") || txt.includes("已连接") || txt.includes("连接成功")
-  );
+  if (statusEl) {
+    const txt = (statusEl.textContent || "").toLowerCase();
+    if (
+      txt.includes("成功") ||
+      txt.includes("已连接") ||
+      txt.includes("连接成功")
+    ) {
+      lcuConnectionState = "ok";
+      return true;
+    }
+    if (txt.includes("失败") || txt.includes("未连接")) {
+      lcuConnectionState = "err";
+      return false;
+    }
+  }
+  return lcuConnectionState === "ok";
 }
 
 let persistentNotificationId = null;
@@ -64,12 +77,12 @@ export function showNotification(message, type = "info", duration = 3000) {
 
   const toast = document.createElement("div");
   toast.className = `notification-toast ${type}`;
-  
+
   const iconMap = {
     info: "bi-info-circle-fill",
     success: "bi-check-circle-fill",
     warning: "bi-exclamation-triangle-fill",
-    error: "bi-x-circle-fill"
+    error: "bi-x-circle-fill",
   };
 
   toast.innerHTML = `
@@ -94,6 +107,14 @@ export function showNotification(message, type = "info", duration = 3000) {
 }
 
 export function setLCUStatus(message, style = "neutral") {
+  if (style === "ok") {
+    lcuConnectionState = "ok";
+  } else if (style === "err") {
+    lcuConnectionState = "err";
+  } else {
+    lcuConnectionState = "pending";
+  }
+
   // If connected (success), show transient notification and clear persistent one
   if (style === "ok") {
     if (persistentNotificationId) {
@@ -106,7 +127,7 @@ export function setLCUStatus(message, style = "neutral") {
 
   // If disconnected/waiting, show persistent notification
   const type = style === "err" ? "error" : "warning";
-  
+
   // If we already have a persistent notification, update it if message changed, or do nothing
   if (persistentNotificationId) {
     const span = persistentNotificationId.element.querySelector("span");
@@ -117,7 +138,9 @@ export function setLCUStatus(message, style = "neutral") {
     persistentNotificationId.element.className = `notification-toast ${type}`;
     const icon = persistentNotificationId.element.querySelector("i");
     if (icon) {
-       icon.className = `bi ${type === 'error' ? 'bi-x-circle-fill' : 'bi-exclamation-triangle-fill'} notification-icon`;
+      icon.className = `bi ${
+        type === "error" ? "bi-x-circle-fill" : "bi-exclamation-triangle-fill"
+      } notification-icon`;
     }
   } else {
     // Create new persistent notification (duration = 0)

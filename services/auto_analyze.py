@@ -4,6 +4,8 @@
 import time
 from config import app_state
 from core import lcu
+from utils.logger import logger
+
 
 
 def _get_player_rank_info(token, port, puuid):
@@ -171,6 +173,38 @@ def _analyze_teammates(token, port, socketio):
             logger.info(f"📝 记录队友PUUID集合: {len(app_state.current_teammates)} 人")
 
 
+def _ensure_teammates_from_live_game(token, port, socketio, players_data):
+    """在游戏已开始但未进行队友分析时，从实时对局数据填充队友信息。"""
+    if app_state.teammate_analysis_done:
+        return
+
+    teammate_entries = (players_data or {}).get('teammates') or []
+    if not teammate_entries:
+        return
+
+    teammates = []
+    for entry in teammate_entries:
+        puuid = entry.get('puuid')
+        if not puuid:
+            continue
+
+        app_state.current_teammates.add(puuid)
+        rank_info = _get_player_rank_info(token, port, puuid)
+        teammates.append({
+            'gameName': entry.get('gameName') or entry.get('summonerName', '未知'),
+            'tagLine': entry.get('tagLine', ''),
+            'puuid': puuid,
+            'rank': rank_info
+        })
+
+    if teammates:
+        socketio.emit('teammates_found', {'teammates': teammates})
+        socketio.emit('status_update', {'type': 'biz', 'message': f'👥 发现 {len(teammates)} 名队友，开始分析战绩...'})
+        app_state.teammate_analysis_done = True
+        logger.info(f"✅ (实时) 队友分析完成，共 {len(teammates)} 人")
+        logger.info(f"📝 记录队友PUUID集合: {len(app_state.current_teammates)} 人")
+
+
 def _analyze_enemies(token, port, socketio, retry_count, max_retries):
     """
     分析敌人战绩（InProgress阶段）
@@ -192,6 +226,9 @@ def _analyze_enemies(token, port, socketio, retry_count, max_retries):
     players_data = lcu.get_all_players_from_game(token, port)
     
     if players_data:
+        # 如果之前未能在 ChampSelect 阶段获取队友，此处补发
+        _ensure_teammates_from_live_game(token, port, socketio, players_data)
+
         enemies = players_data.get('enemies', [])
         
         # 双重过滤：排除队友PUUID
