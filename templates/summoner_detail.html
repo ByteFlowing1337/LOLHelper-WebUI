@@ -14,6 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
+    <link rel="stylesheet" href="/static/css/modern.css" />
     <link rel="stylesheet" href="/static/css/custom.css" />
 
     <style>
@@ -2425,5 +2426,15 @@
         loadSummonerDetails()
       );
     </script>
-  </body>
+  <body>
+    <div class="dynamic-island-container">
+      <div id="dynamic-island" class="dynamic-island island-status-idle">
+        <div class="island-icon">
+          <i class="bi bi-activity"></i>
+        </div>
+        <div class="island-content" id="realtime-status">等待指令...</div>
+      </div>
+    </div>
+
+    <div id="notification-container"></div>
 </html>

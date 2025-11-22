@@ -315,6 +315,45 @@ h6 {
   box-shadow: 0 6px 8px -1px rgba(245, 158, 11, 0.6);
 }
 
+.btn-auto-bp {
+  background: linear-gradient(120deg, #ff9f0a 0%, #ff5e57 45%, #ff2d55 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 12px 24px rgba(255, 66, 93, 0.35);
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-auto-bp::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -20%;
+  width: 40%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.25);
+  transform: skewX(-20deg);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.btn-auto-bp:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(255, 66, 93, 0.45);
+}
+
+.btn-auto-bp:hover::after {
+  opacity: 1;
+  left: 120%;
+}
+
+.btn-auto-bp:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(255, 66, 93, 0.35);
+}
+
 .btn-outline-info {
   color: #38bdf8;
   border: 1px solid rgba(56, 189, 248, 0.5);
