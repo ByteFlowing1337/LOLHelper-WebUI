@@ -56,23 +56,72 @@ export function isLCUConnected() {
   );
 }
 
+let persistentNotificationId = null;
+
+export function showNotification(message, type = "info", duration = 3000) {
+  const container = qs("notification-container");
+  if (!container) return null;
+
+  const toast = document.createElement("div");
+  toast.className = `notification-toast ${type}`;
+  
+  const iconMap = {
+    info: "bi-info-circle-fill",
+    success: "bi-check-circle-fill",
+    warning: "bi-exclamation-triangle-fill",
+    error: "bi-x-circle-fill"
+  };
+
+  toast.innerHTML = `
+    <i class="bi ${iconMap[type] || iconMap.info} notification-icon"></i>
+    <span>${message}</span>
+  `;
+
+  container.appendChild(toast);
+
+  const remove = () => {
+    toast.classList.add("hiding");
+    toast.addEventListener("transitionend", () => {
+      if (toast.parentElement) toast.remove();
+    });
+  };
+
+  if (duration > 0) {
+    setTimeout(remove, duration);
+  }
+
+  return { element: toast, remove };
+}
+
 export function setLCUStatus(message, style = "neutral") {
-  const statusEl = qs("lcu-status");
-  const statusBox = qs("connection-status-box");
-  if (!statusEl || !statusBox) return;
-  statusEl.textContent = message;
+  // If connected (success), show transient notification and clear persistent one
   if (style === "ok") {
-    statusBox.style.backgroundColor = "#d4edda";
-    statusBox.style.color = "#155724";
-    statusBox.style.borderColor = "#c3e6cb";
-  } else if (style === "err") {
-    statusBox.style.backgroundColor = "#f8d7da";
-    statusBox.style.color = "#721c24";
-    statusBox.style.borderColor = "#f5c6cb";
+    if (persistentNotificationId) {
+      persistentNotificationId.remove();
+      persistentNotificationId = null;
+    }
+    showNotification("LCU 连接成功", "success", 3000);
+    return;
+  }
+
+  // If disconnected/waiting, show persistent notification
+  const type = style === "err" ? "error" : "warning";
+  
+  // If we already have a persistent notification, update it if message changed, or do nothing
+  if (persistentNotificationId) {
+    const span = persistentNotificationId.element.querySelector("span");
+    if (span && span.textContent !== message) {
+      span.textContent = message;
+    }
+    // Update class if type changed
+    persistentNotificationId.element.className = `notification-toast ${type}`;
+    const icon = persistentNotificationId.element.querySelector("i");
+    if (icon) {
+       icon.className = `bi ${type === 'error' ? 'bi-x-circle-fill' : 'bi-exclamation-triangle-fill'} notification-icon`;
+    }
   } else {
-    statusBox.style.backgroundColor = "#cce5ff";
-    statusBox.style.color = "#004085";
-    statusBox.style.borderColor = "#b8daff";
+    // Create new persistent notification (duration = 0)
+    persistentNotificationId = showNotification(message, type, 0);
   }
 }
 
