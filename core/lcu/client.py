@@ -7,6 +7,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 import urllib3
 
+from utils.logger import logger
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -34,7 +36,7 @@ def make_request(method, endpoint, token, port, **kwargs):
     auth = HTTPBasicAuth('riot', token) 
     
     # 🔇 减少日志噪音：仅在详细模式下打印（通过环境变量控制）
-    # print(f"--- LCU Request: {method} {endpoint} ---")
+    # logger.debug(f"--- LCU Request: {method} {endpoint} ---")
     
     # 处理 JSON 数据：将 json 参数转换为 data + Content-Type
     if 'json' in kwargs:
@@ -68,15 +70,20 @@ def make_request(method, endpoint, token, port, **kwargs):
         # 🔇 静默处理404错误（端点尝试时很常见），只记录其他错误
         if e.response.status_code != 404:
             # Print full URL to help diagnose path/encoding issues
-            print(f"⚠️ LCU API 错误 ({method} {endpoint}) -> URL: {url} : {e.response.status_code} {e.response.reason}")
+            logger.warning(f"⚠️ LCU API 错误 ({method} {endpoint}) -> URL: {url} : {e.response.status_code} {e.response.reason}")
             
             # 打印 403 错误的详细信息
             if e.response.status_code == 403:
-                print("!!! 权限拒绝 (403 Forbidden) !!! 可能原因: LCU 客户端限制或当前游戏状态不允许查询。")
+                logger.warning("!!! 权限拒绝 (403 Forbidden) !!! 可能原因: LCU 客户端限制或当前游戏状态不允许查询。")
         
         return None
         
     except requests.exceptions.RequestException as e:
+        # 🔇 忽略连接拒绝错误（通常是因为客户端未启动或正在重启），避免刷屏
+        error_str = str(e)
+        if "WinError 10061" in error_str or "Connection refused" in error_str:
+            return None
+
         # 处理其他请求异常（如连接超时、DNS 错误）
-        print(f"⚠️ LCU API 请求异常 ({method} {endpoint}) -> URL: {url} : {e}")
+        logger.warning(f"⚠️ LCU API 请求异常 ({method} {endpoint}) -> URL: {url} : {e}")
         return None

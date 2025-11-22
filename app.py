@@ -15,6 +15,7 @@ from config import HOST, PORT, PUBLIC_HOST
 from routes import page_bp, data_bp
 from websocket import register_socket_events
 from utils import get_local_ip
+from utils.logger import logger
 
 
 def create_app():
@@ -57,13 +58,13 @@ def _wait_and_open_browser(url, host, port, timeout, interval):
     while time.time() < deadline:
         try:
             with socket.create_connection((host, int(port)), timeout=1):
-                print(f"检测到服务器 {host}:{port} 可连接，准备打开浏览器: {url}")
+                logger.info(f"检测到服务器 {host}:{port} 可连接，准备打开浏览器: {url}")
                 webbrowser.open(url)
                 return
         except Exception:
             time.sleep(interval)
     # 超时了，仍然尝试打开一次（避免完全不打开的情况）
-    print(f"等待 {host}:{port} 超时 ({timeout}s)，将尝试直接打开浏览器: {url}")
+    logger.warning(f"等待 {host}:{port} 超时 ({timeout}s)，将尝试直接打开浏览器: {url}")
     webbrowser.open(url)
 
 
@@ -105,7 +106,7 @@ def main():
     # 注册信号处理器：在接收到退出信号时，通知前端并退出
     def _shutdown_handler(signum, frame):
         try:
-            print(f"收到退出信号 ({signum})，正在通知前端并退出...")
+            logger.info(f"收到退出信号 ({signum})，正在通知前端并退出...")
             # 广播一个 server_shutdown 事件，前端监听后会尝试关闭窗口
             try:
                 # 广播到所有已连接客户端（不指定 room）
@@ -136,9 +137,9 @@ def main():
         pass
 
     # 输出启动信息
-    print("Lcu UI 已启动！")
-    print(f"本机访问地址: http://127.0.0.1:{PORT}")
-    print(f"局域网访问地址: {server_address}")
+    logger.info("Lcu UI 已启动！")
+    logger.info(f"本机访问地址: http://127.0.0.1:{PORT}")
+    logger.info(f"局域网访问地址: {server_address}")
     # 启动服务器
     socketio.run(app, host=HOST, port=PORT)
 

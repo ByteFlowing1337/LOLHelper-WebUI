@@ -5,6 +5,8 @@ import time
 from config import app_state
 from core import lcu
 
+from utils.logger import logger
+
 
 def auto_accept_task(socketio):
     """
@@ -40,20 +42,20 @@ def auto_accept_task(socketio):
                     try:
                         lcu.accept_ready_check(token, port)
                         socketio.emit('status_update', {'type': 'biz', 'message': '✅ 已自动接受对局!'})
-                        print("✅ 自动接受对局成功")
+                        logger.info("✅ 自动接受对局成功")
                         accepted_this_phase = True
                     except Exception as accept_error:
                         # 如果接受失败，可能还需要重试，所以不设置 accepted_this_phase = True
                         # 但为了避免刷屏，可以控制错误日志的频率（这里暂不处理，假设失败是少数情况）
-                        print(f"⚠️ 自动接受对局失败: {accept_error}")
+                        logger.warning(f"⚠️ 自动接受对局失败: {accept_error}")
                         socketio.emit('status_update', {'type': 'biz', 'message': f'⚠️ 自动接受失败: {accept_error}'})
                         time.sleep(1) # 失败后稍作等待
 
             except Exception as e:
-                print(f"❌ 自动接受任务异常: {e}")
+                logger.error(f"❌ 自动接受任务异常: {e}")
 
             time.sleep(1)
     finally:
         app_state.auto_accept_thread = None
         app_state.auto_accept_enabled = False
-        print("🛑 自动接受任务已退出")
+        logger.info("🛑 自动接受任务已退出")

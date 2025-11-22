@@ -62,6 +62,8 @@ def get_champ_select_session(token, port):
     return make_request("GET", "/lol-champ-select/v1/session", token, port)
 
 
+from utils.logger import logger
+
 def get_champ_select_enemies(token, port):
     """
     【备用方案】从选人会话中获取敌方玩家信息。
@@ -76,7 +78,7 @@ def get_champ_select_enemies(token, port):
     """
     session = get_champ_select_session(token, port)
     if not session:
-        print("❌ 无法获取选人会话（可能不在选人阶段）")
+        logger.warning("❌ 无法获取选人会话（可能不在选人阶段）")
         return []
     
     try:
@@ -96,9 +98,9 @@ def get_champ_select_enemies(token, port):
             if player.get('summonerId') not in my_team_ids
         ]
         
-        print(f"选人阶段找到 {len(enemy_players)} 名敌方玩家")
+        logger.info(f"选人阶段找到 {len(enemy_players)} 名敌方玩家")
         return enemy_players
         
     except Exception as e:
-        print(f"解析选人会话失败: {e}")
+        logger.error(f"解析选人会话失败: {e}")
         return []
