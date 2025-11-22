@@ -7,6 +7,7 @@ import requests
 import urllib3
 
 from utils.game_data_formatter import format_game_data
+from utils.logger import logger
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -35,7 +36,7 @@ def get_live_game_data():
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"获取游戏内数据失败（可能游戏未开始）: {e}")
+        logger.debug(f"获取游戏内数据失败（可能游戏未开始）: {e}")
         return None
 
 
@@ -76,12 +77,12 @@ def get_enemy_players_from_game():
                 break
         
         if not my_team:
-            print("⚠️ 无法确定当前玩家的队伍")
+            logger.warning("⚠️ 无法确定当前玩家的队伍")
             return []
         
         is_cherry_mode = game_mode.upper() == 'CHERRY'
         if is_cherry_mode:
-            print(f"🍒 CHERRY 模式 (2v2v2v2v2v2v2v2)：当前队伍 {my_team}，查找其他队伍")
+            logger.debug(f"🍒 CHERRY 模式 (2v2v2v2v2v2v2v2)：当前队伍 {my_team}，查找其他队伍")
         
         # 筛选出敌方玩家（队伍不同的玩家）
         if is_cherry_mode and formatted_lookup:
@@ -96,11 +97,11 @@ def get_enemy_players_from_game():
             ]
         
         mode_suffix = " (CHERRY 模式 - 16人)" if is_cherry_mode else ""
-        print(f"找到 {len(enemy_players)} 名敌方玩家{mode_suffix}")
+        logger.debug(f"找到 {len(enemy_players)} 名敌方玩家{mode_suffix}")
         return enemy_players
         
     except Exception as e:
-        print(f"解析敌方玩家数据失败: {e}")
+        logger.error(f"解析敌方玩家数据失败: {e}")
         return []
 
 
@@ -147,7 +148,7 @@ def get_all_players_from_game(token, port):
     
     game_data = get_live_game_data()
     if not game_data:
-        print("❌ 无法获取游戏数据（游戏可能未开始）")
+        logger.debug("❌ 无法获取游戏数据（游戏可能未开始）")
         return None
     
     try:
@@ -160,11 +161,11 @@ def get_all_players_from_game(token, port):
         min_players = 16 if is_cherry_mode else 10
         
         if len(all_players) < min_players:
-            print(f"⚠️ 玩家数据不完整，当前只有 {len(all_players)} 人（{game_mode} 模式需要至少 {min_players} 人）")
+            logger.warning(f"⚠️ 玩家数据不完整，当前只有 {len(all_players)} 人（{game_mode} 模式需要至少 {min_players} 人）")
             return None
         
         if is_cherry_mode:
-            print("🍒 检测到斗魂竞技场模式 (CHERRY)，8个队伍每队2人，共16人")
+            logger.info("🍒 检测到斗魂竞技场模式 (CHERRY)，8个队伍每队2人，共16人")
         
         # 获取当前玩家的召唤师名和队伍
         my_summoner_name = active_player.get('summonerName', '')
@@ -177,10 +178,10 @@ def get_all_players_from_game(token, port):
                 break
         
         if not my_team_side:
-            print("⚠️ 无法确定当前玩家的队伍")
+            logger.warning("⚠️ 无法确定当前玩家的队伍")
             return None
         
-        print(f"🎮 当前玩家队伍: {my_team_side} (模式: {game_mode})")
+        logger.debug(f"🎮 当前玩家队伍: {my_team_side} (模式: {game_mode})")
         
         snapshot = format_game_data(game_data)
         formatted_teammates = snapshot.get('teammates', []) if isinstance(snapshot, dict) else []
@@ -210,13 +211,13 @@ def get_all_players_from_game(token, port):
                     continue
                 subteam_counts[sub_id] = subteam_counts.get(sub_id, 0) + 1
             if not formatted_enemies:
-                print("⚠️ CHERRY 子队分类失败，尝试使用传统队伍字段作为回退逻辑")
+                logger.warning("⚠️ CHERRY 子队分类失败，尝试使用传统队伍字段作为回退逻辑")
 
             if subteam_counts:
                 formatted_counts = ", ".join(
                     [f"S{sub_id}:{count}" for sub_id, count in sorted(subteam_counts.items())]
                 )
-                print(f"🍒 子队统计: {formatted_counts}")
+                logger.debug(f"🍒 子队统计: {formatted_counts}")
 
         teammate_list = []
         enemy_list = []
@@ -267,7 +268,7 @@ def get_all_players_from_game(token, port):
                     if use_subteams and info.get('subteamId') not in (None, -1)
                     else info['team']
                 )
-                print(f"👥 队友: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
+                logger.debug(f"👥 队友: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
 
             for entry in formatted_enemies:
                 info = build_player_info(entry, None)
@@ -277,10 +278,10 @@ def get_all_players_from_game(token, port):
                     if info.get('subteamId') not in (None, -1)
                     else info['team']
                 )
-                print(f"💥 敌人: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
+                logger.debug(f"💥 敌人: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
 
         if is_cherry_mode and not enemy_list:
-            print("⚠️ 使用回退逻辑重新分类 CHERRY 模式玩家")
+            logger.warning("⚠️ 使用回退逻辑重新分类 CHERRY 模式玩家")
             for player in all_players:
                 summoner_name = player.get('summonerName', '未知')
                 player_team = player.get('team', '')
@@ -305,7 +306,7 @@ def get_all_players_from_game(token, port):
                         if info.get('subteamId') not in (None, -1)
                         else info['team']
                     )
-                    print(f"👥 队友: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
+                    logger.debug(f"👥 队友: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
                 else:
                     enemy_list.append(info)
                     team_desc = (
@@ -313,10 +314,10 @@ def get_all_players_from_game(token, port):
                         if info.get('subteamId') not in (None, -1)
                         else info['team']
                     )
-                    print(f"💥 敌人: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
+                    logger.debug(f"💥 敌人: {info['summonerName']} ({info['championName']}) [队伍: {team_desc}]")
         
         mode_info = f"({game_mode})" if is_cherry_mode else f"({my_team_side})"
-        print(f"✅ 成功获取 {len(teammate_list)} 名队友和 {len(enemy_list)} 名敌人 {mode_info}")
+        logger.info(f"✅ 成功获取 {len(teammate_list)} 名队友和 {len(enemy_list)} 名敌人 {mode_info}")
         
         return {
             'teammates': teammate_list,
@@ -324,7 +325,7 @@ def get_all_players_from_game(token, port):
         }
         
     except Exception as e:
-        print(f"❌ 解析玩家数据失败: {e}")
+        logger.error(f"❌ 解析玩家数据失败: {e}")
         return None
 
 
@@ -361,19 +362,19 @@ def get_enemy_stats(token, port):
     
     enemy_players = get_enemy_players_from_game()
     if not enemy_players:
-        print("❌ 无法获取敌方玩家信息（可能游戏未开始）")
+        logger.warning("❌ 无法获取敌方玩家信息（可能游戏未开始）")
         return []
     
     enemy_stats = []
     
     for player in enemy_players:
         summoner_name = player.get('summonerName', '未知')
-        print(f"正在查询敌方玩家: {summoner_name}")
+        logger.debug(f"正在查询敌方玩家: {summoner_name}")
         
         # 步骤1: 获取PUUID（前端可以用来查询战绩）
         puuid = get_puuid(token, port, summoner_name)
         if not puuid:
-            print(f"  ⚠️ 无法获取 {summoner_name} 的PUUID")
+            logger.warning(f"  ⚠️ 无法获取 {summoner_name} 的PUUID")
             enemy_stats.append({
                 'summonerName': summoner_name,
                 'puuid': None,
@@ -383,7 +384,7 @@ def get_enemy_stats(token, port):
             })
             continue
         
-        print(f"  ✅ PUUID: {puuid[:20]}...")
+        logger.debug(f"  ✅ PUUID: {puuid[:20]}...")
         
         # 返回基本信息，战绩由前端异步查询（避免后端阻塞）
         enemy_stats.append({

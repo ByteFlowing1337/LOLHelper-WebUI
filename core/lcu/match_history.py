@@ -8,6 +8,7 @@ import base64
 import requests
 from requests.auth import HTTPBasicAuth
 from urllib.parse import quote_plus
+from utils.logger import logger
 
 # 简单的内存缓存：{puuid: (timestamp, data)}
 _match_history_cache = {}
@@ -62,7 +63,7 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
     if sliced_cache_key in _match_history_cache:
         cached_time, cached_data = _match_history_cache[sliced_cache_key]
         if time.time() - cached_time < CACHE_TTL:
-            print(f"✅ 使用切片缓存 (begin={begin_index}, count={count})")
+            logger.debug(f"✅ 使用切片缓存 (begin={begin_index}, count={count})")
             return cached_data
     
     # 检查完整数据缓存
@@ -70,7 +71,7 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
     if full_cache_key in _match_history_cache:
         cached_time, cached_games = _match_history_cache[full_cache_key]
         if time.time() - cached_time < CACHE_TTL:
-            print(f"✅ 使用完整数据缓存 (共 {len(cached_games)} 场)")
+            logger.debug(f"✅ 使用完整数据缓存 (共 {len(cached_games)} 场)")
             all_games = cached_games
     
     # 如果没有缓存，请求完整数据
@@ -96,7 +97,7 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
         for idx, profile in enumerate(attempt_profiles):
             params = {'begIndex': 0, 'endIndex': profile['endIndex']}
             timeout = profile['timeout']
-            print(f"📊 请求 {profile['endIndex']} 场历史记录 (profile={profile['desc']}, timeout={timeout}s)...")
+            logger.debug(f"📊 请求 {profile['endIndex']} 场历史记录 (profile={profile['desc']}, timeout={timeout}s)...")
 
             # 先尝试通过统一的 make_request（可复用连接池与日志）
             result = make_request(
@@ -113,7 +114,7 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
                 direct_timeout = min(timeout + 6, 28)
                 url = f"https://127.0.0.1:{port}{endpoint}"
                 try:
-                    print(f"⏳ make_request 无响应，尝试直接请求 (timeout={direct_timeout}s)...")
+                    logger.warning(f"⏳ make_request 无响应，尝试直接请求 (timeout={direct_timeout}s)...")
                     resp = requests.get(
                         url,
                         params=params,
@@ -124,11 +125,11 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
                     resp.raise_for_status()
                     result = resp.json()
                 except requests.RequestException as exc:
-                    print(f"⚠️ 直接请求失败: {exc}")
+                    logger.warning(f"⚠️ 直接请求失败: {exc}")
                     if idx == len(attempt_profiles) - 1:
-                        print(f"❌ 查询最终失败 (PUUID={puuid[:8]}...)")
+                        logger.error(f"❌ 查询最终失败 (PUUID={puuid[:8]}...)")
                         return None
-                    print("⏱️ 等待 1 秒后尝试下一套配置...")
+                    logger.debug("⏱️ 等待 1 秒后尝试下一套配置...")
                     time.sleep(1)
                     continue
 
@@ -139,7 +140,7 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
                 else:
                     all_games = games_data if isinstance(games_data, list) else []
 
-                print(f"✅ API返回 {len(all_games)} 场历史记录 (profile={profile['desc']})")
+                logger.debug(f"✅ API返回 {len(all_games)} 场历史记录 (profile={profile['desc']})")
 
                 _match_history_cache[full_cache_key] = (time.time(), all_games)
                 break
@@ -154,11 +155,11 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
     # 从完整数据中切片
     sliced_games = all_games[begin_index:begin_index + count]
     
-    print(f"📊 从 {len(all_games)} 场中切片，取第 {begin_index+1}-{begin_index+len(sliced_games)} 场")
+    logger.debug(f"📊 从 {len(all_games)} 场中切片，取第 {begin_index+1}-{begin_index+len(sliced_games)} 场")
     if sliced_games:
-        print(f"   第一场: gameId={sliced_games[0].get('gameId', 'N/A')}")
+        logger.debug(f"   第一场: gameId={sliced_games[0].get('gameId', 'N/A')}")
         if len(sliced_games) > 1:
-            print(f"   最后一场: gameId={sliced_games[-1].get('gameId', 'N/A')}")
+            logger.debug(f"   最后一场: gameId={sliced_games[-1].get('gameId', 'N/A')}")
     
     # 构造返回结果，保持原有结构
     sliced_result = {
@@ -169,7 +170,7 @@ def get_match_history(token, port, puuid, count=20, begin_index=0):
     
     # 缓存切片后的结果
     _match_history_cache[sliced_cache_key] = (time.time(), sliced_result)
-    print(f"✅ 返回 {len(sliced_games)} 场比赛")
+    logger.debug(f"✅ 返回 {len(sliced_games)} 场比赛")
     
     return sliced_result
 
@@ -196,13 +197,13 @@ def get_tft_match_history(token, port, puuid, count=20):
     if cache_key in _match_history_cache:
         cached_time, cached_data = _match_history_cache[cache_key]
         if time.time() - cached_time < CACHE_TTL:
-            print(f"✅ 使用缓存数据 (TFT PUUID={puuid[:8]}..., count={count})")
+            logger.debug(f"✅ 使用缓存数据 (TFT PUUID={puuid[:8]}..., count={count})")
             return cached_data
 
     timeout = 8 + (count // 20) * 2
     timeout = min(timeout, 25)
 
-    print(f"📊 查询 TFT {count} 场战绩，预计timeout={timeout}秒")
+    logger.debug(f"📊 查询 TFT {count} 场战绩，预计timeout={timeout}秒")
 
     # 直接使用 HTTPS 请求 + Basic Auth（与 runs/fetch_tft_history.py 相同）
     # 这避免了 make_request 和 HTTPBasicAuth 可能的参数处理差异
@@ -210,13 +211,13 @@ def get_tft_match_history(token, port, puuid, count=20):
     auth_header = base64.b64encode(f"riot:{token}".encode('ascii')).decode('ascii')
     headers = {'Authorization': f'Basic {auth_header}'}
 
-    print(f"🔎 TFT 直接请求: {url}")
+    logger.debug(f"🔎 TFT 直接请求: {url}")
 
     max_retries = 2
     for attempt in range(max_retries):
         try:
             resp = requests.get(url, headers=headers, verify=False, timeout=timeout)
-            print(f"📡 TFT 请求响应: {resp.status_code}")
+            logger.debug(f"📡 TFT 请求响应: {resp.status_code}")
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -225,23 +226,23 @@ def get_tft_match_history(token, port, puuid, count=20):
                 _match_history_cache[cache_key] = (time.time(), normalized)
                 
                 games_count = _get_games_count(normalized)
-                print(f"✅ TFT 查询成功 (PUUID={puuid[:8]}..., {games_count} 场比赛)")
+                logger.info(f"✅ TFT 查询成功 (PUUID={puuid[:8]}..., {games_count} 场比赛)")
                 return normalized
             else:
-                print(f"⚠️ TFT 请求失败: {resp.status_code}")
+                logger.warning(f"⚠️ TFT 请求失败: {resp.status_code}")
                 if attempt < max_retries - 1:
-                    print(f"⏳ {timeout}秒后重试... (attempt {attempt + 1}/{max_retries})")
+                    logger.warning(f"⏳ {timeout}秒后重试... (attempt {attempt + 1}/{max_retries})")
                     time.sleep(1)
                 else:
-                    print("❌ TFT 查询最终失败")
+                    logger.error("❌ TFT 查询最终失败")
                     return None
         except Exception as e:
-            print(f"⚠️ TFT 请求异常: {e}")
+            logger.warning(f"⚠️ TFT 请求异常: {e}")
             if attempt < max_retries - 1:
-                print(f"⏳ {timeout}秒后重试... (attempt {attempt + 1}/{max_retries})")
+                logger.warning(f"⏳ {timeout}秒后重试... (attempt {attempt + 1}/{max_retries})")
                 time.sleep(1)
             else:
-                print("❌ TFT 查询异常失败")
+                logger.error("❌ TFT 查询异常失败")
                 return None
 
     return None
@@ -312,12 +313,12 @@ def get_match_by_id(token, port, match_id):
             # 🔇 仅在失败时打印日志，减少控制台噪音
             res = make_request("GET", ep, token, port, timeout=3)  # 单次请求超时3秒
             if res:
-                print(f"✅ 获取对局成功 (match_id={match_id})")
+                logger.debug(f"✅ 获取对局成功 (match_id={match_id})")
                 return res
         except Exception:
             # 静默失败，继续尝试下一个端点
             continue
 
     # 如果都失败，打印日志供调试
-    print(f"❌ 无法通过任何已知 LCU 端点获取 match_id={match_id}")
+    logger.warning(f"❌ 无法通过任何已知 LCU 端点获取 match_id={match_id}")
     return None

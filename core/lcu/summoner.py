@@ -5,6 +5,7 @@
 import re
 import time
 from .client import make_request
+from utils.logger import logger
 
 # PUUID缓存：{summoner_name: (timestamp, puuid)}
 _puuid_cache = {}
@@ -73,7 +74,7 @@ def get_puuid(token, port, summoner_name):
     if summoner_name in _puuid_cache:
         cached_time, cached_puuid = _puuid_cache[summoner_name]
         if time.time() - cached_time < PUUID_CACHE_TTL:
-            print(f"✅ 使用PUUID缓存 ({summoner_name})")
+            logger.debug(f"✅ 使用PUUID缓存 ({summoner_name})")
             return cached_puuid
     
     endpoint = "/lol-summoner/v1/summoners"
@@ -98,7 +99,7 @@ def get_puuid(token, port, summoner_name):
         if puuid:
             # 缓存结果
             _puuid_cache[summoner_name] = (time.time(), puuid)
-            print(f"✅ 查询PUUID成功 ({summoner_name})")
+            logger.debug(f"✅ 查询PUUID成功 ({summoner_name})")
         return puuid
     return None
 
