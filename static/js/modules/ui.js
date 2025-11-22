@@ -7,26 +7,42 @@ export function showInlineMessage(
   message,
   { targetId = "realtime-status", level = "info", timeout = 5000 } = {}
 ) {
-  const el = qs(targetId);
-  if (!el) return;
-  el.textContent = message;
-  // map levels to bootstrap badge classes
-  const cls =
-    {
-      info: "badge bg-info",
-      success: "badge bg-success",
-      warn: "badge bg-warning text-dark",
-      error: "badge bg-danger",
-      neutral: "badge bg-secondary",
-    }[level] || "badge bg-secondary";
-  el.className = cls;
+  const contentEl = qs(targetId);
+  const islandEl = qs("dynamic-island");
+  
+  if (!contentEl || !islandEl) return;
+  
+  contentEl.textContent = message;
+  
+  // Map levels to island status classes and icons
+  const config = {
+    info: { class: "island-status-info", icon: "bi-info-circle" },
+    success: { class: "island-status-success", icon: "bi-check-circle" },
+    warn: { class: "island-status-warning", icon: "bi-exclamation-triangle" },
+    error: { class: "island-status-error", icon: "bi-x-circle" },
+    neutral: { class: "island-status-idle", icon: "bi-activity" },
+  }[level] || { class: "island-status-idle", icon: "bi-activity" };
+
+  // Reset classes
+  islandEl.className = `dynamic-island ${config.class}`;
+  
+  // Update icon
+  const iconEl = islandEl.querySelector(".island-icon i");
+  if (iconEl) {
+    iconEl.className = `bi ${config.icon}`;
+  }
+
+  // Trigger animation
+  islandEl.classList.add("expanded");
+  setTimeout(() => islandEl.classList.remove("expanded"), 300);
 
   if (timeout && timeout > 0) {
-    clearTimeout(el._messageTimeout);
-    el._messageTimeout = setTimeout(() => {
-      // revert to neutral state
-      el.textContent = "等待指令...";
-      el.className = "badge bg-secondary";
+    clearTimeout(contentEl._messageTimeout);
+    contentEl._messageTimeout = setTimeout(() => {
+      // Revert to idle state
+      contentEl.textContent = "等待指令...";
+      islandEl.className = "dynamic-island island-status-idle";
+      if (iconEl) iconEl.className = "bi bi-activity";
     }, timeout);
   }
 }
